@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HRDD Risk Assessment Tool - Complete Coverage-Based Analysis</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background-color: #f8fafc;
+      color: #111827;
+      line-height: 1.6;
+    }
+    
+    #appRoot {
+      width: 100%;
+      min-height: 100vh;
+    }
+    
+    /* Loading Animation */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Responsive Grid Adjustments */
+    @media (max-width: 768px) {
+      .responsive-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
+    
+     @media (max-width: 480px) {
+      #appRoot {
+        padding: 0;
+      }
+    }
+
+    /* Custom scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
+    /* Accessibility improvements */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Focus styles for better accessibility */
+    button:focus,
+    input:focus,
+    select:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+
+    /* Print styles */
+    @media print {
+      .no-print {
+        display: none;
+      }
+      
+      body {
+        background: white;
+        color: black;
+      }
+      
+      .world-map-container {
+        page-break-inside: avoid;
+      }
+      
+      .results-panel {
+        page-break-inside: avoid;
+      }
+    }
+
+    /* Error states */
+    .error-state {
+      animation: shake 0.5s ease-in-out;
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    /* Success states */
+    .success-highlight {
+      animation: highlight 1s ease-in-out;
+    }
+    
+    @keyframes highlight {
+      0% { background-color: transparent; }
+      50% { background-color: #dcfce7; }
+      100% { background-color: transparent; }
+    }
+
+    /* Smooth transitions */
+    * {
+      transition: all 0.2s ease-in-out;
+    }
+
+    /* Dark mode support (if needed later) */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #1f2937;
+        color: #f9fafb;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Accessibility skip link -->
+  <a href="#main-content" class="sr-only">Skip to main content</a>
+  
+  <!-- Loading indicator -->
+  <div id="global-loading" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(248, 250, 252, 0.9); z-index: 9999; display: flex; align-items: center; justify-content: center;">
+    <div style="text-align: center;">
+      <div style="width: 48px; height: 48px; border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 50%; margin: 0 auto 16px; animation: spin 1s linear infinite;"></div>
+      <div style="font-size: 16px; font-weight: 600; color: #374151;">Loading HRDD Coverage-Based Risk Assessment Tool...</div>
+<div style="font-size: 14px; color: #6b7280; margin-top: 8px;">Initializing coverage analysis components and connecting to data services</div>
+    </div>
+  </div>
+
+  <!-- Main Application Container -->
+  <div id="appRoot">
+    <main id="main-content">
+      <div id="app" role="main" aria-label="HRDD Risk Assessment Application">
+        <!-- Application will be mounted here -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Error Boundary -->
+  <div id="error-boundary" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 32px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); max-width: 500px; width: 90%; z-index: 10000;">
+    <div style="text-align: center;">
+      <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+      <h2 style="font-size: 24px; font-weight: bold; color: #dc2626; margin-bottom: 12px;">Application Error</h2>
+      <div id="error-message" style="color: #6b7280; margin-bottom: 20px; line-height: 1.5;">
+        An unexpected error occurred while loading the application.
+      </div>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+          Reload Page
+        </button>
+        <button onclick="document.getElementById('error-boundary').style.display='none'" style="padding: 12px 24px; background-color: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+          Dismiss
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Performance and Analytics (placeholder for future use) -->
+  <script>
+    // Performance monitoring
+    window.hrddPerformance = {
+      startTime: performance.now(),
+      marks: {},
+      
+      mark: function(name) {
+        this.marks[name] = performance.now();
+        console.log(`Performance Mark: ${name} at ${this.marks[name].toFixed(2)}ms`);
+      },
+      
+      measure: function(name, startMark, endMark) {
+        const start = this.marks[startMark] || this.startTime;
+        const end = this.marks[endMark] || performance.now();
+        const duration = end - start;
+        console.log(`Performance Measure: ${name} took ${duration.toFixed(2)}ms`);
+        return duration;
+      }
+    };
+
+    // Global error handler
+    window.addEventListener('error', function(event) {
+      console.error('Global Error:', event.error);
+      showErrorBoundary('JavaScript Error: ' + event.error.message);
+    });
+
+    window.addEventListener('unhandledrejection', function(event) {
+      console.error('Unhandled Promise Rejection:', event.reason);
+      showErrorBoundary('Promise Rejection: ' + (event.reason?.message || event.reason));
+    });
+
+    function showErrorBoundary(message) {
+      const errorBoundary = document.getElementById('error-boundary');
+      const errorMessage = document.getElementById('error-message');
+      if (errorBoundary && errorMessage) {
+        errorMessage.textContent = message;
+        errorBoundary.style.display = 'block';
+      }
+    }
+
+    function hideLoadingIndicator() {
+      const loading = document.getElementById('global-loading');
+      if (loading) {
+        loading.style.opacity = '0';
+        setTimeout(() => loading.remove(), 300);
+      }
+    }
+
+    // Accessibility enhancements
+    function enhanceAccessibility() {
+      // Add ARIA labels to dynamically generated content
+      const maps = document.querySelectorAll('svg');
+      maps.forEach(map => {
+        if (!map.getAttribute('role')) {
+          map.setAttribute('role', 'img');
+          map.setAttribute('aria-label', 'Interactive world map showing risk levels');
+        }
+      });
+
+      // Ensure form controls have proper labels
+      const inputs = document.querySelectorAll('input, select');
+      inputs.forEach(input => {
+        if (!input.getAttribute('aria-label') && !input.closest('label')) {
+          const placeholder = input.getAttribute('placeholder');
+          if (placeholder) {
+            input.setAttribute('aria-label', placeholder);
+          }
+        }
+      });
+    }
+
+    // Mobile optimizations
+    function optimizeForMobile() {
+      if (window.innerWidth <= 768) {
+        // Add mobile-specific CSS class
+        document.body.classList.add('mobile-view');
+        
+        // Adjust viewport for better mobile experience
+        const viewport = document.querySelector('meta[name="viewport"]');
+        if (viewport) {
+          viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes';
+        }
+      }
+    }
+
+    // Initialize mobile optimizations
+    optimizeForMobile();
+    window.addEventListener('resize', optimizeForMobile);
+  </script>
+
+  <!-- Main Application Script -->
+  <script type="module">
+    try {
+      // Performance tracking
+      window.hrddPerformance.mark('script-start');
+      
+   const APP_CONTROLLER_PATH = '/components/AppController.js';
+      const PRODUCTION_ORIGIN = 'https://riskmap2-production.up.railway.app';
+
+      const uniqueUrls = (...urls) => {
+        return Array.from(
+          new Set(
+            urls
+              .flat()
+              .map(url => {
+                if (!url) return null;
+                try {
+                  return new URL(url, window.location.href).href;
+                } catch (error) {
+                  console.warn('Skipping invalid AppController candidate URL', url, error);
+                  return null;
+                }
+              })
+              .filter(Boolean)
+          )
+        );
+      };
+
+      const APP_CONTROLLER_CANDIDATES = uniqueUrls([
+        `${PRODUCTION_ORIGIN}${APP_CONTROLLER_PATH}`,
+        `${PRODUCTION_ORIGIN}/public${APP_CONTROLLER_PATH}`,
+        `${window.location.origin}${APP_CONTROLLER_PATH}`,
+        `${window.location.origin}/public${APP_CONTROLLER_PATH}`,
+        APP_CONTROLLER_PATH,
+        `/public${APP_CONTROLLER_PATH}`
+      ]);
+
+      const RELATIVE_IMPORT_REGEX = /(from\s+['"])(\.\.?\/[^'"\)]+)(['"])/g;
+      const RELATIVE_DYNAMIC_IMPORT_REGEX = /(import\s*\(\s*['"])(\.\.?\/[^'"\)]+)(['"]\s*\))/g;
+      const RELATIVE_EXPORT_REGEX = /(export\s+\*\s+from\s+['"])(\.\.?\/[^'"\)]+)(['"])/g;
+
+      const rewriteRelativeSpecifiers = (source, baseUrl) => {
+        const toAbsolute = specifier => new URL(specifier, baseUrl).href;
+        return source
+          .replace(RELATIVE_IMPORT_REGEX, (match, start, specifier, end) => `${start}${toAbsolute(specifier)}${end}`)
+          .replace(
+            RELATIVE_DYNAMIC_IMPORT_REGEX,
+            (match, start, specifier, end) => `${start}${toAbsolute(specifier)}${end}`
+          )
+          .replace(RELATIVE_EXPORT_REGEX, (match, start, specifier, end) => `${start}${toAbsolute(specifier)}${end}`);
+      };
+
+      const importViaBlob = async url => {
+        const response = await fetch(url, { credentials: 'omit', mode: 'cors' });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+        }
+
+        const source = await response.text();
+        const rewritten = rewriteRelativeSpecifiers(source, url);
+        const blobUrl = URL.createObjectURL(new Blob([rewritten], { type: 'text/javascript' }));
+
+        try {
+          return await import(blobUrl);
+        } finally {
+          URL.revokeObjectURL(blobUrl);
+        }
+      };
+
+      const loadAppControllerModule = async () => {
+        const attempts = [];
+
+        for (const url of APP_CONTROLLER_CANDIDATES) {
+          try {
+            const module = await import(url);
+            console.log('Loaded AppController directly from', url);
+            return module;
+          } catch (error) {
+            attempts.push(`${url} (direct import): ${error?.message || error}`);
+            console.warn('Direct module import failed for', url, error);
+          }
+        }
+
+        for (const url of APP_CONTROLLER_CANDIDATES) {
+          try {
+            const module = await importViaBlob(url);
+            console.log('Loaded AppController via fetch from', url);
+            return module;
+          } catch (error) {
+            attempts.push(`${url} (fetch fallback): ${error?.message || error}`);
+            console.warn('Blob import fallback failed for', url, error);
+          }
+        }
+
+        throw new Error(`Unable to load AppController module. Attempts: ${attempts.join(' | ')}`);
+      };
+
+      const { AppController } = await loadAppControllerModule();
+      
+      window.hrddPerformance.mark('components-loaded');
+      
+      // Initialize the application
+      const app = new AppController();
+      
+      // Make app globally available for external controls
+      window.hrddApp = app;
+      
+      // Enhanced initialization with better error handling
+      const initializeApp = async () => {
+        try {
+          window.hrddPerformance.mark('init-start');
+          
+          // Try to load saved state first
+          const hasState = app.loadSavedState();
+          if (hasState) {
+            console.log('Loaded saved state from localStorage');
+          }
+          
+          // Initialize the main application
+          await app.initialize('app');
+          
+          window.hrddPerformance.mark('init-complete');
+          window.hrddPerformance.measure('Total Initialization', 'script-start', 'init-complete');
+          
+          // Hide loading indicator
+          hideLoadingIndicator();
+          
+          // Enhance accessibility after initialization
+          setTimeout(enhanceAccessibility, 1000);
+          
+          console.log('HRDD Risk Assessment Tool (Complete 3-Step) initialized successfully');
+          
+        } catch (error) {
+          console.error('Failed to initialize application:', error);
+          hideLoadingIndicator();
+          showErrorBoundary(`Initialization failed: ${error.message}`);
+          
+          // Try to initialize with demo data as fallback
+          setTimeout(() => {
+            try {
+              console.log('Attempting to load with demo data...');
+              app.loadDemoData();
+              document.getElementById('error-boundary').style.display = 'none';
+            } catch (demoError) {
+              console.error('Demo data fallback also failed:', demoError);
+            }
+          }, 2000);
+        }
+      };
+
+      // Initialize when DOM is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeApp, { once: true });
+      } else {
+        initializeApp();
+      }
+
+      // Export configuration function for easy access
+      window.exportHRDDConfiguration = () => {
+        try {
+          const config = window.hrddApp.getState();
+          const exportData = {
+            ...config,
+            exportDate: new Date().toISOString(),
+            toolVersion: '3.0',
+            url: window.location.href
+          };
+          
+          const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `hrdd-risk-assessment-${new Date().toISOString().split('T')[0]}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          console.log('Configuration exported successfully');
+        } catch (error) {
+          console.error('Failed to export configuration:', error);
+          showErrorBoundary('Failed to export configuration: ' + error.message);
+        }
+      };
+
+      // Keyboard shortcuts for power users
+      document.addEventListener('keydown', (event) => {
+        // Ctrl/Cmd + E to export
+        if ((event.ctrlKey || event.metaKey) && event.key === 'e') {
+          event.preventDefault();
+          window.exportHRDDConfiguration();
+        }
+        
+        // Ctrl/Cmd + S to save state
+        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+          event.preventDefault();
+          if (window.hrddApp) {
+            window.hrddApp.saveState();
+            // Show brief confirmation
+            const notification = document.createElement('div');
+            notification.textContent = 'Configuration saved!';
+            notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #22c55e; color: white; padding: 12px 20px; border-radius: 6px; z-index: 10000; font-weight: 500;';
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 2000);
+          }
+        }
+        
+        // Ctrl/Cmd + 1/2/3 to switch steps
+        if ((event.ctrlKey || event.metaKey) && event.key >= '1' && event.key <= '3') {
+          event.preventDefault();
+          if (window.hrddApp) {
+            window.hrddApp.setCurrentStep(parseInt(event.key));
+          }
+        }
+      });
+
+      // Periodic auto-save
+      setInterval(() => {
+        if (window.hrddApp && window.hrddApp.state?.isDirty) {
+          window.hrddApp.saveState();
+        }
+      }, 60000); // Save every minute if there are changes
+
+      // Clean up on page unload
+      window.addEventListener('beforeunload', () => {
+        if (window.hrddApp) {
+          window.hrddApp.destroy();
+        }
+      });
+
+      // Expose app methods for external integration
+      window.hrddAPI = {
+        getState: () => window.hrddApp?.getState(),
+        setState: (newState) => window.hrddApp?.setState(newState),
+        exportConfiguration: () => window.exportHRDDConfiguration(),
+        switchToStep: (step) => window.hrddApp?.setCurrentStep(step),
+        addCountry: (countryCode, volume) => window.hrddApp?.addCountry(countryCode, volume),
+        removeCountry: (countryCode) => window.hrddApp?.removeCountry(countryCode),
+        updateWeights: (weights) => window.hrddApp?.onWeightsChange(weights),
+        updateHRDDStrategy: (strategy) => window.hrddApp?.onHRDDStrategyChange(strategy),
+        updateResponsiveness: (responsiveness) => window.hrddApp?.onResponsivenessChange(responsiveness)
+      };
+
+      console.log('HRDD API exposed on window.hrddAPI for external integration');
+
+    } catch (error) {
+      console.error('Critical error loading application:', error);
+      hideLoadingIndicator();
+      showErrorBoundary(`Failed to load application: ${error.message}`);
+    }
+  </script>
+
+  <!-- Analytics placeholder (can be customized) -->
+  <script>
+    // Basic usage analytics (privacy-friendly)
+    function trackUsage(action, details = {}) {
+      // Replace with your analytics service
+      console.log('Usage:', action, details);
+      
+      // Example for Google Analytics (if desired)
+      // gtag('event', action, {
+      //   'custom_parameter': details
+      // });
+    }
+
+    // Track key user actions
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (target.tagName === 'BUTTON') {
+        trackUsage('button_click', { 
+          button: target.textContent,
+          step: window.hrddApp?.state?.currentStep
+        });
+      }
+    });
+
+    // Track step changes
+    let currentStep = 1;
+    setInterval(() => {
+      const newStep = window.hrddApp?.state?.currentStep;
+      if (newStep && newStep !== currentStep) {
+        trackUsage('step_change', { 
+          from: currentStep, 
+          to: newStep 
+        });
+        currentStep = newStep;
+      }
+    }, 1000);
+
+    // Track session duration
+    const sessionStart = Date.now();
+    window.addEventListener('beforeunload', () => {
+      const duration = Math.round((Date.now() - sessionStart) / 1000);
+      trackUsage('session_end', { 
+        duration_seconds: duration,
+        countries_selected: window.hrddApp?.state?.selectedCountries?.length || 0
+      });
+    });
+  </script>
+
+  <!-- Structured data for SEO (optional) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "HRDD Risk Assessment Tool",
+    "description": "Complete 3-step human rights due diligence risk assessment tool for supply chains",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web Browser",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "featureList": [
+      "Baseline risk calculation",
+      "HRDD strategy configuration", 
+      "Managed risk assessment",
+      "Interactive world maps",
+      "Risk factor weighting",
+      "Strategy effectiveness analysis"
+    ]
+  }
+  </script>
+</body>
+</html>

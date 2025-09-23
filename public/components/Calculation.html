@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRDD Risk Assessment - Mathematical Formulation with Rank Preservation</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
+        
+        body {
+            font-family: 'Times New Roman', serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #000;
+            background: white;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .header h1 {
+            font-size: 18pt;
+            font-weight: bold;
+            margin: 0 0 8px 0;
+            color: #1a365d;
+        }
+        
+        .header h2 {
+            font-size: 14pt;
+            font-weight: normal;
+            margin: 0 0 5px 0;
+            color: #2d3748;
+        }
+        
+        .header .version {
+            font-size: 10pt;
+            color: #666;
+            font-style: italic;
+        }
+        
+        h2 {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #1a365d;
+            margin: 20px 0 10px 0;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 3px;
+        }
+        
+        h3 {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #2d3748;
+            margin: 15px 0 8px 0;
+        }
+        
+        h4 {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #4a5568;
+            margin: 12px 0 6px 0;
+        }
+        
+        .formula {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 10pt;
+            text-align: center;
+        }
+        
+        .formula-block {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 10px 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 10pt;
+        }
+        
+        .modification-box {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 12px 0;
+            border-left: 6px solid #d97706;
+        }
+        
+        .modification-box h4 {
+            color: #92400e;
+            margin-top: 0;
+        }
+        
+        .info-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 12px 0;
+        }
+        
+        ul, ol {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        
+        li {
+            margin: 4px 0;
+        }
+        
+        .parameter-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 10pt;
+        }
+        
+        .parameter-table th,
+        .parameter-table td {
+            border: 1px solid #ccc;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        
+        .parameter-table th {
+            background: #f7fafc;
+            font-weight: bold;
+        }
+        
+        .code-block {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 9pt;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .risk-tier {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9pt;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .high-risk { background: #dc2626; }
+        .medium-risk { background: #f59e0b; }
+        .low-risk { background: #22c55e; }
+        
+        .page-break {
+            page-break-before: always;
+        }
+        
+        .footnote {
+            font-size: 9pt;
+            color: #666;
+            font-style: italic;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        
+        .step-number {
+            background: #3b82f6;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 10pt;
+            margin-right: 8px;
+        }
+        
+        @media print {
+            body { margin: 0; padding: 15mm; }
+            .page-break { page-break-before: always; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>HRDD Risk Assessment Tool</h1>
+        <h2>Mathematical Formulation & Implementation Guide</h2>
+        <div class="version">Enhanced Focus-Based Risk Allocation with Rank Preservation</div>
+        <div class="version">Version 6.1 - December 2024</div>
+    </div>
+
+    <div class="modification-box">
+        <h4>🔧 Enhanced Modifications for Aggressive Rank Preservation</h4>
+        <p>This version includes strengthened modifications to eliminate rank reversals. Parameters have been further tightened and a direct rank preservation constraint has been added to mathematically guarantee risk ordering.</p>
+    </div>
+
+    <h2>1) Overview</h2>
+    
+    <p>This document provides the complete mathematical formulation for a coverage-based Human Rights Due Diligence (HRDD) risk assessment system with enhanced rank preservation mechanisms. The methodology incorporates country-specific coverage distribution, focus-based targeting, and real-time effectiveness tracking to optimize risk management strategies across multinational supply chains while maintaining logical risk ordering.</p>
+
+    <h2>2) Portfolio Risk Foundation</h2>
+
+    <h3><span class="step-number">1</span>Volume-Weighted Baseline Risk</h3>
+    
+    <div class="formula">
+        B = (Σᵢ wᵢ · bᵢ) / Σᵢ wᵢ
+    </div>
+    
+    <p><strong>Where:</strong></p>
+    <ul>
+        <li><code>wᵢ</code> = volume weight for country i</li>
+        <li><code>bᵢ</code> = baseline risk score for country i (0-100)</li>
+        <li><code>B</code> = portfolio baseline risk</li>
+    </ul>
+
+    <h3><span class="step-number">2</span>Risk Concentration Factor</h3>
+    
+    <div class="formula">
+        C = (Σᵢ (wᵢ/W) · bᵢ²) / B²
+    </div>
+    
+    <p><strong>Properties:</strong></p>
+    <ul>
+        <li><code>C ≥ 1</code> always (mathematical constraint)</li>
+        <li><code>C = 1</code> when all countries have identical risk</li>
+        <li><code>C > 1</code> indicates risk concentration in specific countries</li>
+        <li>Higher C values amplify focus effectiveness</li>
+    </ul>
+
+    <h2>3) Enhanced Focus-Based Coverage Distribution</h2>
+
+    <p>Coverage is distributed individually to each country based on their risk profile, focus settings, and resource conservation constraints, with new rank preservation mechanisms.</p>
+
+    <h3><span class="step-number">1</span>Modified Focus Exponent Calculation</h3>
+    
+    <div class="modification-box">
+        <h4>MODIFICATION 1: Reduced Maximum Exponent</h4>
+        <p>Maximum focus exponent reduced from 3.5 to 2.8 to prevent extreme biasing that could cause rank reversals.</p>
+    </div>
+    
+    <div class="formula-block">
+        φ = {
+          1 + f · (φₘₐₓ - 1) · (f/0.5)                    if f ≤ 0.5
+          1 + (φₘₐₓ - 1) · [0.5 + (f-0.5)^1.8 · 0.5]     if f > 0.5
+        }
+        
+        Where: φₘₐₓ = 2.0 (FURTHER REDUCED from 2.8)
+    </div>
+
+    <p><strong>Characteristics:</strong></p>
+    <ul>
+        <li>Linear growth up to 50% focus threshold</li>
+        <li>Accelerated exponential growth beyond 50% (exponent 1.8)</li>
+        <li><strong>Modified:</strong> Maximum exponent of 2.8 for controlled targeting</li>
+    </ul>
+
+    <h3><span class="step-number">2</span>Enhanced Biased Risk Ratio with Dual Compression</h3>
+    
+    <div class="modification-box">
+        <h4>MODIFICATION 2: Enhanced Compression System</h4>
+        <p>Added secondary compression layer for extreme cases and reduced maximum ratio from 5.0 to 4.0.</p>
+    </div>
+    
+    <div class="formula-block">
+        rᵢ' = max(rₘᵢₙ, min(rₘₐₓ, (bᵢ/B)^φ))
+        
+        If f > 0.6 AND bᵢ/B < 0.8:
+          rᵢ' = rᵢ' · [0.3 + 0.7 · (bᵢ/B)²]
+        
+        NEW: If f > 0.7 AND rᵢ' > 2.0:
+          rᵢ' = rᵢ' · [0.6 + 0.4 · (2.0/rᵢ')^0.5]
+    </div>
+
+    <p><strong>Further Reduced Parameters:</strong></p>
+    <table class="parameter-table">
+        <tr>
+            <th>Parameter</th>
+            <th>Original</th>
+            <th>First Revision</th>
+            <th>Current Value</th>
+            <th>Impact</th>
+        </tr>
+        <tr>
+            <td>rₘᵢₙ</td>
+            <td>0.05</td>
+            <td>0.05</td>
+            <td>0.08</td>
+            <td>Reduced low-risk penalties</td>
+        </tr>
+        <tr>
+            <td>rₘₐₓ</td>
+            <td>5.0</td>
+            <td>4.0</td>
+            <td>2.5</td>
+            <td>Significantly reduced maximum benefits</td>
+        </tr>
+        <tr>
+            <td>Secondary Compression Threshold</td>
+            <td>None</td>
+            <td>2.0</td>
+            <td>1.5</td>
+            <td>Earlier compression activation</td>
+        </tr>
+        <tr>
+            <td>Compression Strength</td>
+            <td>None</td>
+            <td>0.6 + 0.4×√</td>
+            <td>0.5 + 0.5×√</td>
+            <td>Stronger compression factor</td>
+        </tr>
+    </table>
+
+    <h3><span class="step-number">3</span>Modified Country-Specific Coverage Allocation</h3>
+    
+    <div class="modification-box">
+        <h4>MODIFICATION 3: Gradual High-Risk Boost</h4>
+        <p>Replaced sharp threshold (risk ≥ 60) with gradual curve starting at risk ≥ 40, and reduced maximum boost from 80% to 30%.</p>
+    </div>
+    
+    <div class="formula-block">
+        cᵢⱼ = cⱼ · [(1-f) + f · rᵢ'] · ηᵢ
+        
+        MODIFIED: If f > 0.3 AND bᵢ ≥ 40:
+          riskNormalized = min(1, (bᵢ - 40) / 40)
+          focusNormalized = min(1, (f - 0.3) / 0.7)
+          boostFactor = 1 + (riskNormalized × focusNormalized × 0.3)
+          cᵢⱼ = cᵢⱼ · boostFactor
+    </div>
+
+    <p><strong>Gradual Boost Characteristics:</strong></p>
+    <ul>
+        <li><code>Risk 40-80</code>: Normalized to 0-1 scale</li>
+        <li><code>Focus 0.3-1.0</code>: Normalized to 0-1 scale</li>
+        <li><code>Maximum boost</code>: 30% (reduced from 80%)</li>
+        <li>Prevents sudden jumps in coverage allocation</li>
+    </ul>
+
+    <div class="info-box">
+        <h4>Resource Conservation</h4>
+        <p>The system maintains total resource usage close to original levels while allowing up to 30% expansion for high-focus scenarios to accommodate targeting benefits. Conservation factors (ηᵢ) now apply the gradual boost system as well.</p>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>4) Rank Preservation Mechanisms</h2>
+
+    <div class="modification-box">
+        <h4>NEW SECTION: Critical Rank Preservation Features</h4>
+        <p>These mechanisms ensure that risk rankings remain logically consistent after strategy application.</p>
+    </div>
+
+    <h3><span class="step-number">1</span>Progressive Effectiveness Caps</h3>
+    
+    <div class="formula">
+        For each country i:
+        <br><br>
+        CapEffectivenessᵢ = 0.65 + 0.20 × (1 - bᵢ/100)
+    </div>
+
+    <p><strong>Strengthened Progressive Cap System:</strong></p>
+    <table class="parameter-table">
+        <tr>
+            <th>Country Risk Level</th>
+            <th>Original Max Reduction</th>
+            <th>Current Max Reduction</th>
+            <th>Minimum Managed Risk</th>
+        </tr>
+        <tr>
+            <td>Very High Risk (80+)</td>
+            <td>65%</td>
+            <td>50%</td>
+            <td>40+ points</td>
+        </tr>
+        <tr>
+            <td>High Risk (60-79)</td>
+            <td>69%</td>
+            <td>55%</td>
+            <td>27-36 points</td>
+        </tr>
+        <tr>
+            <td>Medium Risk (40-59)</td>
+            <td>73%</td>
+            <td>60%</td>
+            <td>16-24 points</td>
+        </tr>
+        <tr>
+            <td>Low Risk (20-39)</td>
+            <td>81%</td>
+            <td>70%</td>
+            <td>6-12 points</td>
+        </tr>
+    </table>
+
+    <h3><span class="step-number">2</span>Enhanced Risk Floor Preservation</h3>
+    
+    <div class="formula">
+        riskFloorᵢ = bᵢ × 0.25 (INCREASED from 0.12)
+        <br><br>
+        mᵢᶠⁱⁿᵃˡ = max(mᵢᶜᵃˡᶜᵘˡᵃᵗᵉᵈ, riskFloorᵢ)
+    </div>
+
+    <p><strong>Strengthened Floor Protection:</strong></p>
+    <ul>
+        <li>No country can have managed risk below 25% of baseline (increased from 12%)</li>
+        <li>Prevents unrealistic low-risk outcomes</li>
+        <li>Maintains stronger proportional relationships between countries</li>
+    </ul>
+
+    <h3><span class="step-number">3</span>NEW: Direct Rank Preservation Constraint</h3>
+    
+    <div class="formula-block">
+        After calculating all managed risks:
+        
+        Sort countries by baseline risk: b₁ ≥ b₂ ≥ ... ≥ bₙ
+        
+        For each country i (from highest to lowest baseline risk):
+        If mᵢ ≥ mᵢ₋₁:
+          mᵢ = max(bᵢ × 0.25, mᵢ₋₁ - 0.5)
+        
+        Recalculate portfolio: M = (Σᵢ wᵢ · mᵢᶜᵒʳʳᵉᶜᵗᵉᵈ) / Σᵢ wᵢ
+    </div>
+
+    <p><strong>Mathematical Guarantee:</strong></p>
+    <ul>
+        <li>Countries are sorted by baseline risk in descending order</li>
+        <li>Each country's managed risk must be at least 0.5 points lower than the previous</li>
+        <li>Still respects the 25% risk floor constraint</li>
+        <li>Provides absolute guarantee against rank inversions</li>
+        <li>Portfolio risk is recalculated using corrected values</li>
+    </ul>
+
+    <h2>5) Country-Specific Transparency Calculation</h2>
+
+    <h3><span class="step-number">1</span>Per-Country Category Transparency</h3>
+    
+    <div class="formula">
+        For each country i and category k:
+        <br><br>
+        Tᵢₖ = 1 - ∏ⱼ∈Jₖ (1 - (cᵢⱼ/100) · (eⱼᵇᵃˢᵉ + eⱼᵘˢᵉʳ)/2)
+    </div>
+
+    <p><strong>Tool Categories:</strong></p>
+    <table class="parameter-table">
+        <tr>
+            <th>Category</th>
+            <th>Tools</th>
+            <th>Base Effectiveness</th>
+            <th>Category Weight (αₖ)</th>
+        </tr>
+        <tr>
+            <td>Worker Voice</td>
+            <td>Continuous (j=0), Surveys (j=1)</td>
+            <td>90%, 45%</td>
+            <td>1.0</td>
+        </tr>
+        <tr>
+            <td>Audit</td>
+            <td>Unannounced (j=2), Announced (j=3)</td>
+            <td>25%, 15%</td>
+            <td>0.85</td>
+        </tr>
+        <tr>
+            <td>Passive</td>
+            <td>Self-Report (j=4), Desk-Based (j=5)</td>
+            <td>12%, 5%</td>
+            <td>0.70</td>
+        </tr>
+    </table>
+
+    <h3><span class="step-number">2</span>Combined Country Transparency</h3>
+    
+    <div class="formula">
+        Tᵢ = min(1 - ∏ₖ₌₁³ (1 - Tᵢₖ · αₖ), 0.90)
+    </div>
+
+    <h3><span class="step-number">3</span>Portfolio-Wide Transparency</h3>
+    
+    <div class="formula">
+        T = (Σᵢ wᵢ · Tᵢ) / Σᵢ wᵢ
+    </div>
+
+    <p>This represents the volume-weighted average transparency across all countries in the portfolio, accounting for their individual focus-adjusted coverage allocations.</p>
+
+    <h2>6) Focus Multiplier System</h2>
+
+    <h3><span class="step-number">1</span>Portfolio Focus Multiplier</h3>
+    
+    <div class="formula">
+        F₀ = (1 - f · γ) + f · γ · C
+        <br><br>
+        Where: γ = 2.75 (focus concentration weight)
+    </div>
+
+    <h3><span class="step-number">2</span>Country-Specific Focus Multipliers</h3>
+    
+    <div class="formula-block">
+        For each country i:
+        
+        If f > 0.6 AND bᵢ ≥ 70:
+          Fᵢ = F₀ · [1 + (f-0.6) · 0.5]
+        Else:
+          Fᵢ = (1 - f · γ) + f · γ · rᵢ'
+    </div>
+
+    <p><strong>Ultra-High-Risk Bonus:</strong> Countries with baseline risk ≥70 and focus >60% receive additional multiplier benefits up to 20% extra effectiveness.</p>
+
+    <h2>7) Response Effectiveness</h2>
+
+    <div class="formula">
+        R = (Σⱼ rⱼ · ρⱼ) / Σⱼ rⱼ
+    </div>
+
+    <p><strong>Where:</strong></p>
+    <ul>
+        <li><code>rⱼ</code> = response strategy weight for method j</li>
+        <li><code>ρⱼ</code> = response effectiveness rate for method j (0-100%)</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <h2>8) Final Managed Risk Calculation with Rank Preservation</h2>
+
+    <h3><span class="step-number">1</span>Enhanced Individual Country Managed Risk</h3>
+    
+    <div class="modification-box">
+        <h4>MODIFICATION 4: Multi-Layer Protection System</h4>
+        <p>Managed risk calculation now includes progressive caps and floor protection to prevent rank reversals.</p>
+    </div>
+    
+    <div class="formula-block">
+        Step 1: Calculate base reduction factor
+        baseReductionᵢ = Tᵢ · R · Fᵢ
+        
+        Step 2: Apply progressive effectiveness cap
+        capᵢ = 0.65 + 0.20 × (1 - bᵢ/100)
+        cappedReductionᵢ = min(baseReductionᵢ, capᵢ)
+        
+        Step 3: Calculate managed risk
+        mᵢᶜᵃˡᶜ = bᵢ · (1 - cappedReductionᵢ)
+        
+        Step 4: Apply risk floor protection
+        floorᵢ = bᵢ × 0.12
+        mᵢ = max(mᵢᶜᵃˡᶜ, floorᵢ)
+    </div>
+
+    <h3><span class="step-number">2</span>Portfolio Managed Risk</h3>
+    
+    <div class="formula">
+        M = (Σᵢ wᵢ · mᵢ) / Σᵢ wᵢ
+    </div>
+
+    <h2>9) Focus Effectiveness Metrics</h2>
+
+    <p>The system provides comprehensive metrics to evaluate how effectively the focus strategy is targeting high-risk countries while preserving ranking.</p>
+
+    <h3>Risk Tier Classification</h3>
+    <ul>
+        <li><span class="risk-tier high-risk">High Risk</span>: bᵢ ≥ 60</li>
+        <li><span class="risk-tier medium-risk">Medium Risk</span>: 40 ≤ bᵢ < 60</li>
+        <li><span class="risk-tier low-risk">Low Risk</span>: bᵢ < 40</li>
+    </ul>
+
+    <h3>Enhanced Effectiveness Measures</h3>
+    
+    <div class="formula-block">
+        For each risk tier:
+        ē_tier = (Σᵢ∈tier (bᵢ - mᵢ)/bᵢ · 100) / |tier|
+        
+        Differential Benefit = ē_high - ē_low
+        
+        Focus Effectiveness = min(100, (Differential Benefit)/(f · 50) · 100)
+        
+        NEW: Rank Preservation Check = 
+          (Countries maintaining relative ranking / Total countries) × 100
+    </div>
+
+    <p><strong>Enhanced Performance Indicators:</strong></p>
+    <ul>
+        <li><strong>Focus Effectiveness ≥70%:</strong> Excellent targeting with preserved ranking</li>
+        <li><strong>Focus Effectiveness 40-70%:</strong> Moderate targeting with good preservation</li>
+        <li><strong>Focus Effectiveness <40%:</strong> Poor targeting or rank violations detected</li>
+        <li><strong>Rank Preservation ≥95%:</strong> Successful rank maintenance</li>
+    </ul>
+
+    <h2>10) Implementation Parameters</h2>
+
+    <h3>Enhanced Implementation Parameters (More Aggressive)</h3>
+    <table class="parameter-table">
+        <tr>
+            <th>Parameter</th>
+            <th>Original</th>
+            <th>First Revision</th>
+            <th>Current Value</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td>φₘᵢₙ</td>
+            <td>1.0</td>
+            <td>1.0</td>
+            <td>1.0</td>
+            <td>Minimum focus exponent (unchanged)</td>
+        </tr>
+        <tr>
+            <td>φₘₐₓ</td>
+            <td>3.5</td>
+            <td>2.8</td>
+            <td>2.0</td>
+            <td>Maximum focus exponent (further reduced)</td>
+        </tr>
+        <tr>
+            <td>rₘᵢₙ</td>
+            <td>0.05</td>
+            <td>0.05</td>
+            <td>0.08</td>
+            <td>Minimum risk ratio (increased)</td>
+        </tr>
+        <tr>
+            <td>rₘₐₓ</td>
+            <td>5.0</td>
+            <td>4.0</td>
+            <td>2.5</td>
+            <td>Maximum risk ratio (further reduced)</td>
+        </tr>
+        <tr>
+            <td>High-risk boost threshold</td>
+            <td>60</td>
+            <td>40</td>
+            <td>40</td>
+            <td>Gradual boost starting point (unchanged)</td>
+        </tr>
+        <tr>
+            <td>Maximum boost percentage</td>
+            <td>80%</td>
+            <td>30%</td>
+            <td>30%</td>
+            <td>Maximum coverage boost (unchanged)</td>
+        </tr>
+        <tr>
+            <td>Risk floor</td>
+            <td>None</td>
+            <td>12%</td>
+            <td>25%</td>
+            <td>Minimum managed risk retention (increased)</td>
+        </tr>
+        <tr>
+            <td>Progressive cap range</td>
+            <td>None</td>
+            <td>65%-85%</td>
+            <td>50%-70%</td>
+            <td>Maximum reduction limits (strengthened)</td>
+        </tr>
+        <tr>
+            <td>Direct rank constraint</td>
+            <td>None</td>
+            <td>None</td>
+            <td>0.5 pt separation</td>
+            <td>Mathematical ranking guarantee (new)</td>
+        </tr>
+    </table>
+
+    <h3>Default Coverage Values</h3>
+    <ul>
+        <li><strong>Continuous Worker Voice:</strong> 35% (rare, expensive)</li>
+        <li><strong>Worker Surveys:</strong> 15% (moderate deployment)</li>
+        <li><strong>Unannounced Audits:</strong> 25% (targeted approach)</li>
+        <li><strong>Announced Audits:</strong> 60% (common practice)</li>
+        <li><strong>Supplier Self-Reporting:</strong> 80% (widespread)</li>
+        <li><strong>Desk-Based Assessment:</strong> 90% (universal baseline)</li>
+    </ul>
+
+    <h3>Enhanced Focus Strategy Guidelines</h3>
+    <table class="parameter-table">
+        <tr>
+            <th>Focus Level</th>
+            <th>Strategy Type</th>
+            <th>Rank Preservation</th>
+            <th>Recommended Use</th>
+        </tr>
+        <tr>
+            <td>f = 0.1 - 0.3</td>
+            <td>Legacy audit programs</td>
+            <td>Excellent</td>
+            <td>Calendar-driven, even spread</td>
+        </tr>
+        <tr>
+            <td>f = 0.4 - 0.6</td>
+            <td>Risk-led programs</td>
+            <td>Very Good</td>
+            <td>Periodic risk-based allocation</td>
+        </tr>
+        <tr>
+            <td>f = 0.7 - 0.9</td>
+            <td>Continuous voice + risk triage</td>
+            <td>Good</td>
+            <td>Highly targeted with preservation</td>
+        </tr>
+        <tr>
+            <td>f = 0.9 - 1.0</td>
+            <td>Crisis response mode</td>
+            <td>Monitored</td>
+            <td>Emergency surge with safeguards</td>
+        </tr>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2>11) Enhanced Worked Example</h2>
+
+    <h3>Portfolio Setup</h3>
+    <p>Three countries with focus level f = 0.8 (demonstrating rank preservation):</p>
+    <ul>
+        <li><strong>Country A:</strong> w₁ = 0.5, b₁ = 80 <span class="risk-tier high-risk">Very High Risk</span></li>
+        <li><strong>Country B:</strong> wᵦ = 0.3, bᵦ = 50 <span class="risk-tier medium-risk">Medium Risk</span></li>
+        <li><strong>Country C:</strong> wᵨ = 0.2, bᵨ = 20 <span class="risk-tier low-risk">Low Risk</span></li>
+    </ul>
+
+    <h3>Step 1: Portfolio Metrics</h3>
+    <div class="code-block">
+B = (0.5×80 + 0.3×50 + 0.2×20) / (0.5+0.3+0.2) = 59
+C = [(0.5×80² + 0.3×50² + 0.2×20²) / (0.5+0.3+0.2)] / 59² = 1.42
+    </div>
+
+    <h3>Step 2: Enhanced Focus Calculations</h3>
+    <div class="code-block">
+φ = 1 + (2.8-1) × [0.5 + (0.8-0.5)^1.8 × 0.5] = 2.31 (REDUCED from 2.65)
+
+Country A: r₁' = min(4.0, (80/59)^2.31) = 2.32 (REDUCED from 2.84)
+Country B: rᵦ' = (50/59)^2.31 = 0.58
+Country C: rᵨ' = max(0.05, (20/59)^2.31) = 0.06 (compression applied)
+    </div>
+
+    <h3>Step 3: Enhanced Coverage Allocation (Unannounced Audits, base 25%)</h3>
+    <div class="code-block">
+Country A: c₁ = 25 × [(1-0.8) + 0.8×2.32] = 51.6%
+         (Gradual high-risk boost: 51.6 × 1.24 = 64.0%) (REDUCED from 96.2%)
+Country B: cᵦ = 25 × [(1-0.8) + 0.8×0.58] = 16.6%
+         (Gradual boost: 16.6 × 1.09 = 18.1%)
+Country C: cᵨ = 25 × [(1-0.8) + 0.8×0.06] = 6.2%
+    </div>
+
+    <h3>Step 4: Rank Preservation in Action</h3>
+    <div class="code-block">
+Progressive Caps:
+Country A (risk 80): Max 67% reduction → Managed risk ≥ 26.4
+Country B (risk 50): Max 75% reduction → Managed risk ≥ 12.5
+Country C (risk 20): Max 81% reduction → Managed risk ≥ 3.8
+
+Risk Floors:
+Country A: Floor = 80 × 0.12 = 9.6
+Country B: Floor = 50 × 0.12 = 6.0
+Country C: Floor = 20 × 0.12 = 2.4
+
+Final Managed Risks (estimated):
+Country A: ~32 (maintains highest risk)
+Country B: ~18 (maintains middle position)
+Country C: ~6 (maintains lowest risk)
+    </div>
+
+    <h3>Step 5: Enhanced Expected Outcomes</h3>
+    <ul>
+        <li><strong>Country A:</strong> Receives 64% audit coverage with 60% risk reduction</li>
+        <li><strong>Country B:</strong> Receives 18% audit coverage with 64% risk reduction</li>
+        <li><strong>Country C:</strong> Receives 6% audit coverage with 70% risk reduction</li>
+        <li><strong>Rank Preservation:</strong> A > B > C maintained throughout process</li>
+        <li><strong>Resource Efficiency:</strong> High-risk countries still receive preferential treatment</li>
+        <li><strong>Realistic Outcomes:</strong> No country achieves unrealistic near-zero risk</li>
+    </ul>
+
+    <h2>12) Enhanced Behavioral Properties</h2>
+
+    <div class="info-box">
+        <h4>Guaranteed Rank Preservation</h4>
+        <p>The enhanced system mathematically ensures that countries maintain their relative risk ranking after strategy application through progressive caps and risk floors.</p>
+    </div>
+
+    <div class="info-box">
+        <h4>Proportional Benefit Distribution</h4>
+        <ul>
+            <li>High-risk countries: Receive 2-3x more coverage than medium-risk countries</li>
+            <li>Medium-risk countries: Receive 2-4x more coverage than low-risk countries</li>
+            <li>All countries: Achieve realistic, proportional risk reductions</li>
+        </ul>
+    </div>
+
+    <div class="info-box">
+        <h4>Enhanced Focus Effectiveness Validation</h4>
+        <ul>
+            <li>Real-time measurement prevents ineffective focus strategies</li>
+            <li>Differential benefit tracking ensures high-risk countries receive meaningful advantages</li>
+            <li>Rank preservation metrics validate logical consistency</li>
+            <li>Performance scoring guides strategy optimization</li>
+        </ul>
+    </div>
+
+    <div class="info-box">
+        <h4>Controlled Resource Expansion</h4>
+        <ul>
+            <li>Base resource usage maintained across portfolio</li>
+            <li>Up to 30% expansion allowed for high-focus scenarios</li>
+            <li>Gradual boost system prevents resource allocation spikes</li>
+            <li>Conservation factors maintain proportional scaling</li>
+        </ul>
+    </div>
+
+    <h2>13) Summary of Critical Modifications</h2>
+
+    <table class="parameter-table">
+        <tr>
+            <th>Modification</th>
+            <th>Purpose</th>
+            <th>Impact</th>
+            <th>Result</th>
+        </tr>
+        <tr>
+            <td>Reduced φₘₐₓ (3.5→2.8)</td>
+            <td>Prevent extreme biasing</td>
+            <td>Moderate high-risk benefits</td>
+            <td>Realistic targeting</td>
+        </tr>
+        <tr>
+            <td>Reduced rₘₐₓ (5.0→4.0)</td>
+            <td>Limit maximum ratios</td>
+            <td>Cap excessive multipliers</td>
+            <td>Controlled allocation</td>
+        </tr>
+        <tr>
+            <td>Dual compression system</td>
+            <td>Handle extreme cases</td>
+            <td>Additional ratio reduction</td>
+            <td>Smoother distribution</td>
+        </tr>
+        <tr>
+            <td>Progressive effectiveness caps</td>
+            <td>Preserve risk ranking</td>
+            <td>65%-85% max reductions</td>
+            <td>Guaranteed ordering</td>
+        </tr>
+        <tr>
+            <td>Gradual high-risk boost</td>
+            <td>Smooth coverage transitions</td>
+            <td>30% max boost from 40+ risk</td>
+            <td>Natural progression</td>
+        </tr>
+        <tr>
+            <td>Risk floor protection</td>
+            <td>Prevent unrealistic zeros</td>
+            <td>12% minimum retention</td>
+            <td>Realistic minimums</td>
+        </tr>
+    </table>
+
+    <div class="footnote">
+        <p><strong>Document Version:</strong> 6.1 Enhanced | <strong>Last Updated:</strong> December 2024 | <strong>Implementation:</strong> HRDD Risk Assessment Tool with Rank Preservation Mechanisms</p>
+        <p><strong>Technical Notes:</strong> All calculations maintain numerical stability through bounded parameters and progressive safeguards. Focus effectiveness metrics provide real-time validation of targeting success while ensuring rank preservation. The enhanced system prevents rank reversals while maintaining meaningful focus-based allocation benefits.</p>
+    </div>
+</body>
+</html>
