@@ -1381,7 +1381,7 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
     focusShareOfTotal = totalReduction !== 0 ? (focusStageReduction / totalReduction) * 100 : 0;
   }
 
- const toolLabels = Array.isArray(riskEngine.hrddStrategyLabels)
+  const toolLabels = Array.isArray(riskEngine.hrddStrategyLabels)
     ? riskEngine.hrddStrategyLabels
     : detectionBreakdown.map(item => item.name);
 
@@ -1396,88 +1396,6 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
   const remedyVerbLabel = remedyStageVerb === 'removed' ? 'Removes' : 'Adds';
   const conductVerbLabel = conductStageVerb === 'removed' ? 'Removes' : 'Adds';
 
-  const stageConfigs = {
-    detection: {
-      title: 'Panel 3 · Detection coverage',
-      border: '#bfdbfe',
-      background: '#eff6ff',
-      text: '#1d4ed8',
-      highlight: '#1e40af',
-      muted: '#1e3a8a',
-      dashedColor: '#94a3b8',
-      emptyBg: '#f8fafc',
-      emptyText: '#475569',
-      emptyMessage: 'Adjust your coverage in Panel 3 to unlock detection-driven risk reduction.',
-      verbLabel: detectionVerbLabel,
-      shareLabel: 'detection change',
-      coverage: (item) => {
-        const coverageText = item.coverageRange
-          ? `Coverage: ${item.coverageRange}`
-          : `Coverage: ${formatNumber(item.coverage, 0)}%`;
-        const detectionRate = Number.isFinite(item.assumedEffectiveness)
-          ? ` • Detection: ${formatNumber(item.assumedEffectiveness, 0)}%`
-          : '';
-        return `${coverageText}${detectionRate}`;
-      }
-    },
-    remedy: {
-      title: 'Panel 4 · Sustained remedy',
-      border: '#ddd6fe',
-      background: '#f5f3ff',
-      text: '#5b21b6',
-      highlight: '#6d28d9',
-      muted: '#4c1d95',
-      dashedColor: '#c4b5fd',
-      emptyBg: '#f5f3ff',
-      emptyText: '#5b21b6',
-      emptyMessage: 'Panel 4 sustained remedy scores determine how reliably issues are closed out. Calibrate them to reflect lived experience.',
-      verbLabel: remedyVerbLabel,
-      shareLabel: 'sustained remedy change',
-      coverage: (item) => `Coverage applied: ${formatNumber(item.coverage, 0)}% • Sustained remedy: ${formatNumber(item.effectiveness, 0)}%`
-    },
-    conduct: {
-      title: 'Panel 4 · Promoting good conduct',
-      border: '#99f6e4',
-      background: '#ecfdf5',
-      text: '#047857',
-      highlight: '#0f766e',
-      muted: '#0f766e',
-      dashedColor: '#0f766e40',
-      emptyBg: '#ecfdf5',
-      emptyText: '#0f766e',
-      emptyMessage: 'Panel 4 conduct assumptions capture how tools deter future harm. Use them to reflect how suppliers behave between issues.',
-      verbLabel: conductVerbLabel,
-      shareLabel: 'good conduct change',
-      coverage: (item) => `Coverage applied: ${formatNumber(item.coverage, 0)}% • Good conduct: ${formatNumber(item.effectiveness, 0)}%`
-    }
-  };
-
-  const createStageSection = (stageKey, data) => {
-    const config = stageConfigs[stageKey];
-    if (!config) return '';
-
-    if (!data) {
-      return `<div style="padding: 12px 14px; border: 1px dashed ${config.dashedColor}; border-radius: 8px; background-color: ${config.emptyBg}; color: ${config.emptyText}; font-size: 12px;">${config.emptyMessage}</div>`;
-    }
-
-    const points = Math.abs(ensureNumber(data.riskPoints, 0));
-    const percentOfTotal = Math.abs(ensureNumber(data.percentOfTotal, 0));
-    const share = Math.abs(ensureNumber(data.stageShare, 0));
-    const detailLine = typeof config.coverage === 'function' ? config.coverage(data) : '';
-    const shareLine = share > 0
-      ? `<div style="font-size: 11px; color: ${config.muted};">Share of ${config.shareLabel}: ${formatNumber(share)}%</div>`
-      : '';
-
-    return `
-      <div style="padding: 12px 14px; border: 1px solid ${config.border}; background-color: ${config.background}; border-radius: 8px; display: flex; flex-direction: column; gap: 4px;">
-        <div style="font-size: 12px; font-weight: 600; color: ${config.text};">${config.title}</div>
-        ${detailLine ? `<div style="font-size: 12px; color: ${config.muted};">${detailLine}</div>` : ''}
-        <div style="font-size: 11px; color: ${config.highlight};">${config.verbLabel} ${formatNumber(points)} pts (~${formatNumber(percentOfTotal)}% of total)</div>
-        ${shareLine}
-      </div>
-    `;
-  };
-
   const getDetailByName = (collection, label, index) => {
     if (!Array.isArray(collection)) return null;
     return collection.find(item => item.name === label) || collection[index] || null;
@@ -1489,31 +1407,32 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
     const conductDetail = getDetailByName(conductBreakdown, label, index);
     const categoryName = toolCategoryLookup[label] || detectionDetail?.category || 'Tool';
     const accentColor = categoryColors[categoryName] || '#1f2937';
-    const totalPoints =
-      Math.abs(ensureNumber(detectionDetail?.riskPoints, 0)) +
-      Math.abs(ensureNumber(remedyDetail?.riskPoints, 0)) +
-      Math.abs(ensureNumber(conductDetail?.riskPoints, 0));
-    const totalPercent =
-      Math.abs(ensureNumber(detectionDetail?.percentOfTotal, 0)) +
-      Math.abs(ensureNumber(remedyDetail?.percentOfTotal, 0)) +
-      Math.abs(ensureNumber(conductDetail?.percentOfTotal, 0));
+    const detectionPoints = Math.abs(ensureNumber(detectionDetail?.riskPoints, 0));
+    const remedyPoints = Math.abs(ensureNumber(remedyDetail?.riskPoints, 0));
+    const conductPoints = Math.abs(ensureNumber(conductDetail?.riskPoints, 0));
+    const totalPoints = detectionPoints + remedyPoints + conductPoints;
+
+    const detailSegments = [
+      `transparency effectiveness: ${formatNumber(detectionPoints)} pts`,
+      `remedy support: ${formatNumber(remedyPoints)} pts`,
+      `promotion of good conduct: ${formatNumber(conductPoints)} pts`
+    ];
+
+    const detailText = detailSegments.length > 1
+      ? `${detailSegments.slice(0, -1).join(', ')} and ${detailSegments.slice(-1)}`
+      : detailSegments[0];
 
     return `
-      <div style="border: 1px solid ${accentColor}20; border-left: 4px solid ${accentColor}; border-radius: 12px; background-color: white; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
-          <div>
+      <div style="border: 1px solid ${accentColor}20; border-left: 4px solid ${accentColor}; border-radius: 12px; background-color: white; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
             <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: ${accentColor};">${categoryName}</div>
-            <div style="font-size: 16px; font-weight: 600; color: #111827;">${label}</div>
+            <div style="font-size: 15px; font-weight: 600; color: #111827;">${label}</div>
           </div>
-          <div style="text-align: right; font-size: 11px; color: #475569; min-width: 110px;">
-            <div style="font-size: 13px; font-weight: 600; color: #111827;">${formatNumber(totalPoints)} pts</div>
-            <div>~${formatNumber(totalPercent)}% of total</div>
-          </div>
+          <div style="font-size: 12px; font-weight: 600; color: #0f172a;">${formatNumber(totalPoints)} pts total impact</div>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-          ${createStageSection('detection', detectionDetail)}
-          ${createStageSection('remedy', remedyDetail)}
-          ${createStageSection('conduct', conductDetail)}
+        <div style="font-size: 12px; color: #475569; line-height: 1.5;">
+          ${label}: total impact ${formatNumber(totalPoints)} pts coming from ${detailText}.
         </div>
       </div>
     `;
@@ -2291,7 +2210,7 @@ export function createCostAnalysisPanel(containerId, options) {
     `;
   };
 
- const renderCostConfigurationRows = () => {
+  const renderCostConfigurationRows = () => {
     if (rowCount === 0) {
       return '';
     }
@@ -2308,6 +2227,29 @@ export function createCostAnalysisPanel(containerId, options) {
 
       <!-- Header Section -->
      <div style="display: flex; flex-direction: column; gap: ${responsive('12px', '16px')};">
+            <div style="background: white; padding: ${responsive('16px', '24px')}; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08); border-top: 4px solid #3b82f6;">
+              <h4 style="font-size: ${responsive('16px', '18px')}; font-weight: 600; color: #1f2937; margin: 0 0 ${responsive('12px', '16px')} 0; text-align: center;">Effectiveness Comparison</h4>
+              <div style="display: grid; grid-template-columns: ${responsive('1fr', 'repeat(3, minmax(0, 1fr))')}; gap: ${responsive('12px', '16px')}; align-items: stretch;">
+                <div style="padding: ${responsive('14px', '20px')}; border-radius: 12px; border: 3px solid ${baselineColor}; background-color: ${baselineColor}15; text-align: center;">
+                  <div style="font-size: ${responsive('11px', '12px')}; font-weight: 600; color: #4b5563; margin-bottom: 6px;">BASELINE RISK</div>
+                  <div style="font-size: ${responsive('28px', '36px')}; font-weight: 700; color: ${baselineColor}; margin-bottom: 4px;">${baselineRiskDisplay}</div>
+                  <div style="font-size: ${responsive('12px', '14px')}; font-weight: 600; color: ${baselineColor};">Risk Level</div>
+                  <div style="font-size: ${responsive('11px', '12px')}; color: #4b5563; margin-top: 6px;">Current baseline exposure</div>
+                </div>
+                <div style="padding: ${responsive('14px', '20px')}; border-radius: 12px; border: 3px solid ${managedColor}; background-color: ${managedColor}15; text-align: center;">
+                  <div style="font-size: ${responsive('11px', '12px')}; font-weight: 600; color: #4b5563; margin-bottom: 6px;">MANAGED RISK</div>
+                  <div style="font-size: ${responsive('28px', '36px')}; font-weight: 700; color: ${managedColor}; margin-bottom: 4px;">${managedRiskDisplay}</div>
+                  <div style="font-size: ${responsive('12px', '14px')}; font-weight: 600; color: ${managedColor};">Risk Level</div>
+                  <div style="font-size: ${responsive('11px', '12px')}; color: #4b5563; margin-top: 6px;">Achieved with current tools</div>
+                </div>
+                <div style="padding: ${responsive('14px', '20px')}; border-radius: 12px; border: 3px solid ${optimizedRiskColor}; background-color: ${optimizedRiskColor}15; text-align: center;">
+                  <div style="font-size: ${responsive('11px', '12px')}; font-weight: 600; color: #4b5563; margin-bottom: 6px;">OPTIMISED RISK</div>
+                  <div style="font-size: ${responsive('28px', '36px')}; font-weight: 700; color: ${optimizedRiskColor}; margin-bottom: 4px;">${optimizedRiskDisplay}</div>
+                  <div style="font-size: ${responsive('12px', '14px')}; font-weight: 600; color: ${optimizedRiskColor};">Risk Level</div>
+                  <div style="font-size: ${responsive('11px', '12px')}; color: #4b5563; margin-top: 6px;">Projected after optimisation</div>
+                </div>
+              </div>
+            </div>
             <div style="display: flex; flex-direction: column; gap: ${responsive('6px', '8px')};">
               <h3 style="font-size: ${responsive('16px', '18px')}; font-weight: 600; color: #1f2937; margin: 0;">Global Risk Outlook</h3>
               <p style="font-size: ${responsive('12px', '13px')}; color: #4b5563; margin: 0;">Compare baseline, managed, and optimized risk levels for your selected supply chain countries.</p>
@@ -2322,8 +2264,7 @@ export function createCostAnalysisPanel(containerId, options) {
                       style="border: 1px solid #cbd5f5; background: #f8fafc; color: #1f2937; font-size: 12px; font-weight: 600; padding: 10px 18px; border-radius: 9999px; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); transition: all 0.2s ease;">Optimized risk</button>
             </div>
           </div>
-          <div id="costAnalysisMapCanvas" style="width: 100%; aspect-ratio: 16 / 9; min-height: ${responsive('260px', '360px')}; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);"></div>
-          <div id="costAnalysisMapCanvas" style="width: 100%; min-height: ${responsive('260px', '360px')}; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);"></div>
+          <div id="costAnalysisMapCanvas" style="width: 100%; min-height: ${responsive('320px', '500px')}; height: ${responsive('320px', '500px')}; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);"></div>
           <div id="costAnalysisMapLegend" style="display: flex; justify-content: center; flex-wrap: wrap; gap: 12px;"></div>
         </div>
         <h2 style="font-size: ${responsive('18px', '20px')}; font-weight: bold; color: #1f2937; margin: 0;">Cost Analysis & Budget Optimization</h2>
@@ -2695,6 +2636,16 @@ function renderOptimizationResults(optimization, budgetData, baselineRisk, manag
   const improvementLabel = improvementValue > 0 ? 'Improvement' : improvementValue < 0 ? 'Decrease' : 'No Change';
   const currentColor = '#2563eb';
   const optimizedColor = '#16a34a';
+
+  const formatRiskLevel = value => (Number.isFinite(value) ? value.toFixed(1) : '0.0');
+
+  const baselineRiskDisplay = formatRiskLevel(currentBaselineRisk);
+  const managedRiskDisplay = formatRiskLevel(currentManagedRisk);
+  const optimizedRiskDisplay = formatRiskLevel(optimizedManagedRisk);
+
+  const baselineColor = '#1d4ed8';
+  const managedColor = '#f97316';
+  const optimizedRiskColor = '#16a34a';
 
   const normalizeCurrencyValue = (value, fallback = 0) =>
     typeof value === 'number' && Number.isFinite(value) ? value : fallback;
