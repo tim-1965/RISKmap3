@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HRDD Risk Assessment - Mathematical Formulation with Rank Preservation</title>
+    <title>HRDD Risk Assessment - Mathematical Formulation with Budget Optimization</title>
     <style>
         @page {
             size: A4;
@@ -105,6 +105,20 @@
             margin-top: 0;
         }
         
+        .optimization-box {
+            background: #f0fdf4;
+            border: 2px solid #22c55e;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 12px 0;
+            border-left: 6px solid #16a34a;
+        }
+        
+        .optimization-box h4 {
+            color: #166534;
+            margin-top: 0;
+        }
+        
         .info-box {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -202,18 +216,18 @@
     <div class="header">
         <h1>HRDD Risk Assessment Tool</h1>
         <h2>Mathematical Formulation & Implementation Guide</h2>
-        <div class="version">Enhanced Focus-Based Risk Allocation with Rank Preservation</div>
-        <div class="version">Version 6.1 - December 2024</div>
+        <div class="version">Focus-Based Risk Allocation with Budget Optimization</div>
+        <div class="version">Version 7.0 - December 2024</div>
     </div>
 
     <div class="modification-box">
-        <h4>🔧 Enhanced Modifications for Aggressive Rank Preservation</h4>
-        <p>This version includes strengthened modifications to eliminate rank reversals. Parameters have been further tightened and a direct rank preservation constraint has been added to mathematically guarantee risk ordering.</p>
+        <h4>🔧 with Budget Optimization</h4>
+        <p>This version includes both rank preservation mechanisms and a sophisticated multi-algorithm budget optimization system that maximizes risk reduction per dollar spent while maintaining total budget constraints.</p>
     </div>
 
     <h2>1) Overview</h2>
     
-    <p>This document provides the complete mathematical formulation for a coverage-based Human Rights Due Diligence (HRDD) risk assessment system with enhanced rank preservation mechanisms. The methodology incorporates country-specific coverage distribution, focus-based targeting, and real-time effectiveness tracking to optimize risk management strategies across multinational supply chains while maintaining logical risk ordering.</p>
+    <p>This document provides the complete mathematical formulation for a coverage-based Human Rights Due Diligence (HRDD) risk assessment system with rank preservation mechanisms and budget optimization. The methodology incorporates country-specific coverage distribution, focus-based targeting, real-time effectiveness tracking, and cost-aware optimization to maximize risk reduction within budget constraints across multinational supply chains.</p>
 
     <h2>2) Portfolio Risk Foundation</h2>
 
@@ -244,7 +258,7 @@
         <li>Higher C values amplify focus effectiveness</li>
     </ul>
 
-    <h2>3) Enhanced Focus-Based Coverage Distribution</h2>
+    <h2>3) Focus-Based Coverage Distribution</h2>
 
     <p>Coverage is distributed individually to each country based on their risk profile, focus settings, and resource conservation constraints, with new rank preservation mechanisms.</p>
 
@@ -252,7 +266,7 @@
     
     <div class="modification-box">
         <h4>MODIFICATION 1: Reduced Maximum Exponent</h4>
-        <p>Maximum focus exponent reduced from 3.5 to 2.8 to prevent extreme biasing that could cause rank reversals.</p>
+        <p>Maximum focus exponent reduced from 3.5 to 2.0 to prevent extreme biasing that could cause rank reversals.</p>
     </div>
     
     <div class="formula-block">
@@ -268,14 +282,14 @@
     <ul>
         <li>Linear growth up to 50% focus threshold</li>
         <li>Accelerated exponential growth beyond 50% (exponent 1.8)</li>
-        <li><strong>Modified:</strong> Maximum exponent of 2.8 for controlled targeting</li>
+        <li><strong>Modified:</strong> Maximum exponent of 2.0 for controlled targeting</li>
     </ul>
 
-    <h3><span class="step-number">2</span>Enhanced Biased Risk Ratio with Dual Compression</h3>
+    <h3><span class="step-number">2</span>Biased Risk Ratio with Dual Compression</h3>
     
     <div class="modification-box">
-        <h4>MODIFICATION 2: Enhanced Compression System</h4>
-        <p>Added secondary compression layer for extreme cases and reduced maximum ratio from 5.0 to 4.0.</p>
+        <h4>MODIFICATION 2: Compression System</h4>
+        <p>Added secondary compression layer for extreme cases and reduced maximum ratio from 5.0 to 2.5.</p>
     </div>
     
     <div class="formula-block">
@@ -284,8 +298,8 @@
         If f > 0.6 AND bᵢ/B < 0.8:
           rᵢ' = rᵢ' · [0.3 + 0.7 · (bᵢ/B)²]
         
-        NEW: If f > 0.7 AND rᵢ' > 2.0:
-          rᵢ' = rᵢ' · [0.6 + 0.4 · (2.0/rᵢ')^0.5]
+        NEW: If f > 0.7 AND rᵢ' > 1.5:
+          rᵢ' = rᵢ' · [0.5 + 0.5 · (1.5/rᵢ')^0.5]
     </div>
 
     <p><strong>Further Reduced Parameters:</strong></p>
@@ -371,7 +385,7 @@
     <div class="formula">
         For each country i:
         <br><br>
-        CapEffectivenessᵢ = 0.65 + 0.20 × (1 - bᵢ/100)
+        CapEffectivenessᵢ = 0.50 + 0.20 × (1 - bᵢ/100)
     </div>
 
     <p><strong>Strengthened Progressive Cap System:</strong></p>
@@ -408,7 +422,7 @@
         </tr>
     </table>
 
-    <h3><span class="step-number">2</span>Enhanced Risk Floor Preservation</h3>
+    <h3><span class="step-number">2</span>Risk Floor Preservation</h3>
     
     <div class="formula">
         riskFloorᵢ = bᵢ × 0.25 (INCREASED from 0.12)
@@ -431,8 +445,8 @@
         Sort countries by baseline risk: b₁ ≥ b₂ ≥ ... ≥ bₙ
         
         For each country i (from highest to lowest baseline risk):
-        If mᵢ ≥ mᵢ₋₁:
-          mᵢ = max(bᵢ × 0.25, mᵢ₋₁ - 0.5)
+        If mᵢ ≥ mᵢ₊₁:
+          mᵢ = max(bᵢ × 0.25, mᵢ₊₁ - 0.5)
         
         Recalculate portfolio: M = (Σᵢ wᵢ · mᵢᶜᵒʳʳᵉᶜᵗᵉᵈ) / Σᵢ wᵢ
     </div>
@@ -446,7 +460,213 @@
         <li>Portfolio risk is recalculated using corrected values</li>
     </ul>
 
-    <h2>5) Country-Specific Transparency Calculation</h2>
+    <div class="page-break"></div>
+
+    <h2>5) Budget Optimization System (Panel 6)</h2>
+
+    <div class="optimization-box">
+        <h4>🚀 Advanced Multi-Algorithm Optimization</h4>
+        <p>The budget optimization system employs a sophisticated multi-strategy approach combining three algorithms to find the optimal allocation of HRDD tools and response methods that maximizes risk reduction within budget constraints.</p>
+    </div>
+
+    <h3><span class="step-number">1</span>Cost Model Formulation</h3>
+
+    <div class="formula-block">
+        Total Cost = Σⱼ (External Costsⱼ + Internal Costsⱼ)
+        
+        For each tool j in Panel 3:
+        External Costsⱼ = Annual Programmeⱼ × (cⱼ/100) + Per Supplierⱼ × Sⱼ
+        Internal Costsⱼ = Internal Hoursⱼ × Sⱼ × Hourly Rate
+        
+        Where:
+        cⱼ = Coverage percentage for tool j (0-100)
+        Sⱼ = Number of suppliers using tool j = ⌈Total Suppliers × (cⱼ/100)⌉
+    </div>
+
+    <p><strong>Cost Components:</strong></p>
+    <table class="parameter-table">
+        <tr>
+            <th>Component</th>
+            <th>Description</th>
+            <th>Unit</th>
+            <th>Typical Range</th>
+        </tr>
+        <tr>
+            <td>Annual Programme Cost</td>
+            <td>Fixed annual cost for tool infrastructure</td>
+            <td>USD/year</td>
+            <td>$0 - $50,000</td>
+        </tr>
+        <tr>
+            <td>Per Supplier Cost</td>
+            <td>Variable cost per supplier using the tool</td>
+            <td>USD/supplier/year</td>
+            <td>$0 - $2,000</td>
+        </tr>
+        <tr>
+            <td>Internal Hours</td>
+            <td>Staff time required per supplier</td>
+            <td>hours/supplier/year</td>
+            <td>0 - 500</td>
+        </tr>
+        <tr>
+            <td>Hourly Rate</td>
+            <td>Internal staff cost rate</td>
+            <td>USD/hour</td>
+            <td>$20 - $200</td>
+        </tr>
+    </table>
+
+    <h3><span class="step-number">2</span>Optimization Problem Definition</h3>
+
+    <div class="formula-block">
+        Minimize: M (Managed Risk)
+        
+        Subject to:
+        1. Total Cost ≤ Target Budget × (1 + tolerance)
+        2. 0 ≤ cⱼ ≤ 100 for all tools j
+        3. 0 ≤ rₖ ≤ 100 for all response methods k  
+        4. c₀ = r₀ (Voice linkage constraint)
+        5. Improvement ≥ 0.1 percentage points
+        
+        Where:
+        tolerance = 0.02 (2% budget flexibility)
+    </div>
+
+    <h3><span class="step-number">3</span>Multi-Strategy Optimization Algorithm</h3>
+
+    <p>The optimizer employs a sophisticated three-phase approach with multiple restart strategies:</p>
+
+    <h4>Phase 1: Simulated Annealing</h4>
+    <div class="formula-block">
+        Temperature Schedule: T(i) = T₀ × 0.95^i
+        Acceptance Probability: P(ΔE) = exp(-ΔE/T) if ΔE > 0, else 1
+        
+        Neighbor Generation:
+        - Step size: [-6, +6] for standard tools
+        - Voice bonus: +3 additional for voice-priority strategy
+        - Budget pre-check before expensive evaluation
+    </div>
+
+    <h4>Phase 2: Budget-Constrained Genetic Algorithm</h4>
+    <div class="formula-block">
+        Population Size: 20 individuals
+        Selection: Tournament selection preferring valid solutions
+        Crossover: α-blending with α ∈ [0.3, 0.9]
+        Mutation: Gaussian noise with σ = 6
+        Elitism: Top 3 valid solutions preserved
+        
+        Budget Enforcement:
+        After each generation, adjust allocations to meet budget
+    </div>
+
+    <h4>Phase 3: Local Search Refinement</h4>
+    <div class="formula-block">
+        Search Strategy: Coordinate descent with adaptive step size
+        Step Size: max(3, 10 × (1 - iteration/max_iterations))
+        
+        For each dimension:
+        - Try ±step_size changes
+        - Accept if improves fitness and maintains budget
+        - Terminate at local optimum
+    </div>
+
+    <h3><span class="step-number">4</span>Optimization Strategies</h3>
+
+    <p>The system employs four distinct optimization strategies in rotation:</p>
+
+    <table class="parameter-table">
+        <tr>
+            <th>Strategy</th>
+            <th>Priority</th>
+            <th>Budget Adjustment Method</th>
+            <th>Focus</th>
+        </tr>
+        <tr>
+            <td>Balanced</td>
+            <td>Equal reduction across tools</td>
+            <td>Proportional scaling</td>
+            <td>Overall effectiveness</td>
+        </tr>
+        <tr>
+            <td>Voice Priority</td>
+            <td>Preserve worker voice tools</td>
+            <td>Reduce non-voice first</td>
+            <td>Worker engagement</td>
+        </tr>
+        <tr>
+            <td>Efficiency Focused</td>
+            <td>Maximize effectiveness/cost ratio</td>
+            <td>Cut inefficient tools first</td>
+            <td>Cost-effectiveness</td>
+        </tr>
+        <tr>
+            <td>Preserve Voice</td>
+            <td>Maintain voice coverage</td>
+            <td>Adjust other tools only</td>
+            <td>Worker voice protection</td>
+        </tr>
+    </table>
+
+    <h3><span class="step-number">5</span>Budget Adjustment Algorithm</h3>
+
+    <div class="formula-block">
+        adjustToBudget(allocation, target_budget):
+        While |current_cost - target_budget| > tolerance:
+          If current_cost > target_budget:
+            // Reduce allocation strategically
+            If strategy == 'preserve_voice':
+              Reduce non-voice tools by 8%
+            Else if strategy == 'efficiency_focused':
+              Reduce least efficient tool by 10%
+            Else:
+              Reduce highest allocation by 5-8%
+          Else:
+            // Increase allocation to use budget
+            If voice < 85%:
+              Increase voice by 6-8%
+            Else:
+              Increase most effective tool by 6%
+    </div>
+
+    <h3><span class="step-number">6</span>Performance Metrics</h3>
+
+    <div class="formula-block">
+        Fitness Function: F = M + λ × |Cost - Budget|/Budget
+        
+        Where:
+        M = Managed risk after allocation
+        λ = 2 (penalty weight for budget violation)
+        
+        Success Criteria:
+        - Risk reduction improvement ≥ 0.1 percentage points
+        - Budget violation ≤ 2%
+        - At least 12 valid solutions found
+    </div>
+
+    <h3><span class="step-number">7</span>Convergence and Termination</h3>
+
+    <p><strong>The optimization terminates when:</strong></p>
+    <ul>
+        <li>Maximum time reached (4.5 seconds)</li>
+        <li>Sufficient valid solutions found (≥12) with good fitness</li>
+        <li>5 restart attempts completed</li>
+        <li>No improvement possible (re-optimization returns same solution)</li>
+    </ul>
+
+    <div class="info-box">
+        <h4>Re-optimization Handling</h4>
+        <p>The system caches optimization results using a state hash. If re-optimization is attempted with identical parameters, the system checks if the new solution meets improvement criteria:</p>
+        <ul>
+            <li><strong>Criteria A:</strong> Lower budget with same or better risk reduction</li>
+            <li><strong>Criteria B:</strong> At least 0.1 percentage point better risk reduction within budget</li>
+        </ul>
+        <p>If neither criterion is met, the previous solution is retained as optimal.</p>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>6) Country-Specific Transparency Calculation</h2>
 
     <h3><span class="step-number">1</span>Per-Country Category Transparency</h3>
     
@@ -477,8 +697,8 @@
             <td>0.85</td>
         </tr>
         <tr>
-            <td>Passive</td>
-            <td>Self-Report (j=4), Desk-Based (j=5)</td>
+            <td>SAQ</td>
+            <td>Evidenced Self-Report (j=4), Unevidenced Self-Report (j=5)</td>
             <td>12%, 5%</td>
             <td>0.70</td>
         </tr>
@@ -498,7 +718,7 @@
 
     <p>This represents the volume-weighted average transparency across all countries in the portfolio, accounting for their individual focus-adjusted coverage allocations.</p>
 
-    <h2>6) Focus Multiplier System</h2>
+    <h2>7) Focus Multiplier System</h2>
 
     <h3><span class="step-number">1</span>Portfolio Focus Multiplier</h3>
     
@@ -521,7 +741,7 @@
 
     <p><strong>Ultra-High-Risk Bonus:</strong> Countries with baseline risk ≥70 and focus >60% receive additional multiplier benefits up to 20% extra effectiveness.</p>
 
-    <h2>7) Response Effectiveness</h2>
+    <h2>8) Response Effectiveness</h2>
 
     <div class="formula">
         R = (Σⱼ rⱼ · ρⱼ) / Σⱼ rⱼ
@@ -535,9 +755,9 @@
 
     <div class="page-break"></div>
 
-    <h2>8) Final Managed Risk Calculation with Rank Preservation</h2>
+    <h2>9) Final Managed Risk Calculation with Rank Preservation</h2>
 
-    <h3><span class="step-number">1</span>Enhanced Individual Country Managed Risk</h3>
+    <h3><span class="step-number">1</span>Individual Country Managed Risk</h3>
     
     <div class="modification-box">
         <h4>MODIFICATION 4: Multi-Layer Protection System</h4>
@@ -549,14 +769,14 @@
         baseReductionᵢ = Tᵢ · R · Fᵢ
         
         Step 2: Apply progressive effectiveness cap
-        capᵢ = 0.65 + 0.20 × (1 - bᵢ/100)
+        capᵢ = 0.50 + 0.20 × (1 - bᵢ/100)
         cappedReductionᵢ = min(baseReductionᵢ, capᵢ)
         
         Step 3: Calculate managed risk
         mᵢᶜᵃˡᶜ = bᵢ · (1 - cappedReductionᵢ)
         
         Step 4: Apply risk floor protection
-        floorᵢ = bᵢ × 0.12
+        floorᵢ = bᵢ × 0.25
         mᵢ = max(mᵢᶜᵃˡᶜ, floorᵢ)
     </div>
 
@@ -566,7 +786,7 @@
         M = (Σᵢ wᵢ · mᵢ) / Σᵢ wᵢ
     </div>
 
-    <h2>9) Focus Effectiveness Metrics</h2>
+    <h2>10) Focus Effectiveness Metrics</h2>
 
     <p>The system provides comprehensive metrics to evaluate how effectively the focus strategy is targeting high-risk countries while preserving ranking.</p>
 
@@ -577,7 +797,7 @@
         <li><span class="risk-tier low-risk">Low Risk</span>: bᵢ < 40</li>
     </ul>
 
-    <h3>Enhanced Effectiveness Measures</h3>
+    <h3>Effectiveness Measures</h3>
     
     <div class="formula-block">
         For each risk tier:
@@ -591,7 +811,7 @@
           (Countries maintaining relative ranking / Total countries) × 100
     </div>
 
-    <p><strong>Enhanced Performance Indicators:</strong></p>
+    <p><strong>Performance Indicators:</strong></p>
     <ul>
         <li><strong>Focus Effectiveness ≥70%:</strong> Excellent targeting with preserved ranking</li>
         <li><strong>Focus Effectiveness 40-70%:</strong> Moderate targeting with good preservation</li>
@@ -599,9 +819,11 @@
         <li><strong>Rank Preservation ≥95%:</strong> Successful rank maintenance</li>
     </ul>
 
-    <h2>10) Implementation Parameters</h2>
+    <div class="page-break"></div>
 
-    <h3>Enhanced Implementation Parameters (More Aggressive)</h3>
+    <h2>11) Implementation Parameters</h2>
+
+    <h3>Implementation Parameters</h3>
     <table class="parameter-table">
         <tr>
             <th>Parameter</th>
@@ -673,6 +895,20 @@
             <td>0.5 pt separation</td>
             <td>Mathematical ranking guarantee (new)</td>
         </tr>
+        <tr>
+            <td>Budget tolerance</td>
+            <td>N/A</td>
+            <td>5%</td>
+            <td>2%</td>
+            <td>Optimization budget flexibility</td>
+        </tr>
+        <tr>
+            <td>Min improvement</td>
+            <td>N/A</td>
+            <td>N/A</td>
+            <td>0.1 pp</td>
+            <td>Minimum risk reduction improvement</td>
+        </tr>
     </table>
 
     <h3>Default Coverage Values</h3>
@@ -681,11 +917,11 @@
         <li><strong>Worker Surveys:</strong> 15% (moderate deployment)</li>
         <li><strong>Unannounced Audits:</strong> 25% (targeted approach)</li>
         <li><strong>Announced Audits:</strong> 60% (common practice)</li>
-        <li><strong>Supplier Self-Reporting:</strong> 80% (widespread)</li>
-        <li><strong>Desk-Based Assessment:</strong> 90% (universal baseline)</li>
+        <li><strong>Evidenced Supplier Self-Reporting:</strong> 80% (widespread)</li>
+        <li><strong>Unsupported Supplier Self-Reporting:</strong> 90% (universal baseline)</li>
     </ul>
 
-    <h3>Enhanced Focus Strategy Guidelines</h3>
+    <h3>Focus Strategy Guidelines</h3>
     <table class="parameter-table">
         <tr>
             <th>Focus Level</th>
@@ -721,154 +957,78 @@
 
     <div class="page-break"></div>
 
-    <h2>11) Enhanced Worked Example</h2>
+    <h2>12) Budget Optimization Example</h2>
 
-    <h3>Portfolio Setup</h3>
-    <p>Three countries with focus level f = 0.8 (demonstrating rank preservation):</p>
-    <ul>
-        <li><strong>Country A:</strong> w₁ = 0.5, b₁ = 80 <span class="risk-tier high-risk">Very High Risk</span></li>
-        <li><strong>Country B:</strong> wᵦ = 0.3, bᵦ = 50 <span class="risk-tier medium-risk">Medium Risk</span></li>
-        <li><strong>Country C:</strong> wᵨ = 0.2, bᵨ = 20 <span class="risk-tier low-risk">Low Risk</span></li>
-    </ul>
-
-    <h3>Step 1: Portfolio Metrics</h3>
+    <h3>Initial Setup</h3>
+    <p>Portfolio with 500 suppliers, $40/hour internal rate, initial budget of $500,000:</p>
+    
+    <h3>Step 1: Calculate Current Cost</h3>
     <div class="code-block">
-B = (0.5×80 + 0.3×50 + 0.2×20) / (0.5+0.3+0.2) = 59
-C = [(0.5×80² + 0.3×50² + 0.2×20²) / (0.5+0.3+0.2)] / 59² = 1.42
+Current allocation: [35%, 15%, 25%, 60%, 80%, 90%] (Panel 3 tools)
+Current response: [35%, 5%, 25%, 25%, 10%, 10%] (Panel 4 methods)
+
+Tool costs:
+- Worker Voice: $12,000 × 0.35 + $120 × 175 suppliers = $25,200
+- Surveys: $0 × 0.15 + $0 × 75 suppliers + 20hrs × 75 × $40 = $60,000
+- Unannounced Audits: $0 × 0.25 + $1000 × 125 = $125,000
+...
+Total current budget: $486,000
+Current risk reduction: 42.3%
     </div>
 
-    <h3>Step 2: Enhanced Focus Calculations</h3>
+    <h3>Step 2: Run Multi-Strategy Optimization</h3>
     <div class="code-block">
-φ = 1 + (2.8-1) × [0.5 + (0.8-0.5)^1.8 × 0.5] = 2.31 (REDUCED from 2.65)
+Strategy 1 - Balanced:
+  Phase 1 (Simulated Annealing): 200 iterations
+  Phase 2 (Genetic Algorithm): 120 generations
+  Phase 3 (Local Search): 100 iterations
+  Result: 48.1% risk reduction at $488,000
 
-Country A: r₁' = min(4.0, (80/59)^2.31) = 2.32 (REDUCED from 2.84)
-Country B: rᵦ' = (50/59)^2.31 = 0.58
-Country C: rᵨ' = max(0.05, (20/59)^2.31) = 0.06 (compression applied)
+Strategy 2 - Voice Priority:
+  [Same phases]
+  Result: 49.2% risk reduction at $492,000
+
+Strategy 3 - Efficiency Focused:
+  [Same phases]
+  Result: 50.3% risk reduction at $485,000 ← BEST
+
+Strategy 4 - Preserve Voice:
+  [Same phases]
+  Result: 47.8% risk reduction at $490,000
     </div>
 
-    <h3>Step 3: Enhanced Coverage Allocation (Unannounced Audits, base 25%)</h3>
+    <h3>Step 3: Optimized Allocation</h3>
     <div class="code-block">
-Country A: c₁ = 25 × [(1-0.8) + 0.8×2.32] = 51.6%
-         (Gradual high-risk boost: 51.6 × 1.24 = 64.0%) (REDUCED from 96.2%)
-Country B: cᵦ = 25 × [(1-0.8) + 0.8×0.58] = 16.6%
-         (Gradual boost: 16.6 × 1.09 = 18.1%)
-Country C: cᵨ = 25 × [(1-0.8) + 0.8×0.06] = 6.2%
+Optimized tool allocation: [52%, 8%, 45%, 35%, 65%, 72%]
+Optimized response: [52%, 12%, 35%, 18%, 8%, 5%]
+
+Key changes:
+- Worker Voice: +17% (leverage high effectiveness)
+- Unannounced Audits: +20% (cost-effective detection)
+- Announced Audits: -25% (reduce low-effectiveness spend)
+- Response reallocation to match detection increases
+
+Total optimized budget: $485,000 (-$1,000)
+Optimized risk reduction: 50.3% (+8.0 percentage points)
     </div>
 
-    <h3>Step 4: Rank Preservation in Action</h3>
+    <h3>Step 4: Validation</h3>
     <div class="code-block">
-Progressive Caps:
-Country A (risk 80): Max 67% reduction → Managed risk ≥ 26.4
-Country B (risk 50): Max 75% reduction → Managed risk ≥ 12.5
-Country C (risk 20): Max 81% reduction → Managed risk ≥ 3.8
+✓ Budget constraint met: $485,000 ≤ $500,000 × 1.02
+✓ Minimum improvement met: 8.0% > 0.1%
+✓ All allocations within bounds: 0% ≤ all ≤ 100%
+✓ Voice linkage maintained: c₀ = r₀ = 52%
+✓ Valid solutions found: 127 > 12
 
-Risk Floors:
-Country A: Floor = 80 × 0.12 = 9.6
-Country B: Floor = 50 × 0.12 = 6.0
-Country C: Floor = 20 × 0.12 = 2.4
-
-Final Managed Risks (estimated):
-Country A: ~32 (maintains highest risk)
-Country B: ~18 (maintains middle position)
-Country C: ~6 (maintains lowest risk)
+Result: OPTIMIZATION SUCCESSFUL
+Improvement: 8.0 percentage points better risk reduction
+Budget savings: $1,000
+Efficiency gain: 19% more risk reduction per dollar
     </div>
-
-    <h3>Step 5: Enhanced Expected Outcomes</h3>
-    <ul>
-        <li><strong>Country A:</strong> Receives 64% audit coverage with 60% risk reduction</li>
-        <li><strong>Country B:</strong> Receives 18% audit coverage with 64% risk reduction</li>
-        <li><strong>Country C:</strong> Receives 6% audit coverage with 70% risk reduction</li>
-        <li><strong>Rank Preservation:</strong> A > B > C maintained throughout process</li>
-        <li><strong>Resource Efficiency:</strong> High-risk countries still receive preferential treatment</li>
-        <li><strong>Realistic Outcomes:</strong> No country achieves unrealistic near-zero risk</li>
-    </ul>
-
-    <h2>12) Enhanced Behavioral Properties</h2>
-
-    <div class="info-box">
-        <h4>Guaranteed Rank Preservation</h4>
-        <p>The enhanced system mathematically ensures that countries maintain their relative risk ranking after strategy application through progressive caps and risk floors.</p>
-    </div>
-
-    <div class="info-box">
-        <h4>Proportional Benefit Distribution</h4>
-        <ul>
-            <li>High-risk countries: Receive 2-3x more coverage than medium-risk countries</li>
-            <li>Medium-risk countries: Receive 2-4x more coverage than low-risk countries</li>
-            <li>All countries: Achieve realistic, proportional risk reductions</li>
-        </ul>
-    </div>
-
-    <div class="info-box">
-        <h4>Enhanced Focus Effectiveness Validation</h4>
-        <ul>
-            <li>Real-time measurement prevents ineffective focus strategies</li>
-            <li>Differential benefit tracking ensures high-risk countries receive meaningful advantages</li>
-            <li>Rank preservation metrics validate logical consistency</li>
-            <li>Performance scoring guides strategy optimization</li>
-        </ul>
-    </div>
-
-    <div class="info-box">
-        <h4>Controlled Resource Expansion</h4>
-        <ul>
-            <li>Base resource usage maintained across portfolio</li>
-            <li>Up to 30% expansion allowed for high-focus scenarios</li>
-            <li>Gradual boost system prevents resource allocation spikes</li>
-            <li>Conservation factors maintain proportional scaling</li>
-        </ul>
-    </div>
-
-    <h2>13) Summary of Critical Modifications</h2>
-
-    <table class="parameter-table">
-        <tr>
-            <th>Modification</th>
-            <th>Purpose</th>
-            <th>Impact</th>
-            <th>Result</th>
-        </tr>
-        <tr>
-            <td>Reduced φₘₐₓ (3.5→2.8)</td>
-            <td>Prevent extreme biasing</td>
-            <td>Moderate high-risk benefits</td>
-            <td>Realistic targeting</td>
-        </tr>
-        <tr>
-            <td>Reduced rₘₐₓ (5.0→4.0)</td>
-            <td>Limit maximum ratios</td>
-            <td>Cap excessive multipliers</td>
-            <td>Controlled allocation</td>
-        </tr>
-        <tr>
-            <td>Dual compression system</td>
-            <td>Handle extreme cases</td>
-            <td>Additional ratio reduction</td>
-            <td>Smoother distribution</td>
-        </tr>
-        <tr>
-            <td>Progressive effectiveness caps</td>
-            <td>Preserve risk ranking</td>
-            <td>65%-85% max reductions</td>
-            <td>Guaranteed ordering</td>
-        </tr>
-        <tr>
-            <td>Gradual high-risk boost</td>
-            <td>Smooth coverage transitions</td>
-            <td>30% max boost from 40+ risk</td>
-            <td>Natural progression</td>
-        </tr>
-        <tr>
-            <td>Risk floor protection</td>
-            <td>Prevent unrealistic zeros</td>
-            <td>12% minimum retention</td>
-            <td>Realistic minimums</td>
-        </tr>
-    </table>
 
     <div class="footnote">
-        <p><strong>Document Version:</strong> 6.1 Enhanced | <strong>Last Updated:</strong> December 2024 | <strong>Implementation:</strong> HRDD Risk Assessment Tool with Rank Preservation Mechanisms</p>
-        <p><strong>Technical Notes:</strong> All calculations maintain numerical stability through bounded parameters and progressive safeguards. Focus effectiveness metrics provide real-time validation of targeting success while ensuring rank preservation. The enhanced system prevents rank reversals while maintaining meaningful focus-based allocation benefits.</p>
+        <p><strong>Document Version:</strong> 7.0 Enhanced with Budget Optimization | <strong>Last Updated:</strong> December 2024 | <strong>Implementation:</strong> HRDD Risk Assessment Tool with Rank Preservation and Cost Optimization</p>
+        <p><strong>Technical Notes:</strong> All calculations maintain numerical stability through bounded parameters, progressive safeguards, and multi-strategy optimization. The budget optimizer employs sophisticated algorithms to maximize risk reduction within financial constraints while preserving logical risk rankings. The system prevents rank reversals while finding cost-effective allocations through intelligent multi-phase optimization.</p>
     </div>
 </body>
 </html>

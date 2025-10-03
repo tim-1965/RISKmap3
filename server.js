@@ -11,7 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Risk calculation defaults (kept in sync with frontend RiskEngine)
-const DEFAULT_WEIGHTS = [20, 20, 5, 10, 10];
+const DEFAULT_WEIGHTS = [20, 20, 20, 20, 20];
 
 let cachedFallbackData = null;
 
@@ -46,10 +46,9 @@ function formatCountryRecord(record) {
     isoCode,
     itucRightsRating: toNumber(record.itucRightsRating),
     corruptionIndex: toNumber(record.corruptionIndex),
-    migrantWorkerPrevalence: toNumber(record.migrantWorkerPrevalence),
+    freedomRating: toNumber(record.freedomRating),
     wjpIndex: toNumber(record.wjpIndex),
-    walkfreeSlaveryIndex: toNumber(record.walkfreeSlaveryIndex),
-    baseRiskScore: toNumber(record.baseRiskScore)
+    walkfreeSlaveryIndex: toNumber(record.walkfreeSlaveryIndex)
   };
 }
 
@@ -156,10 +155,9 @@ const countrySchema = new mongoose.Schema({
   isoCode: { type: String, required: true, unique: true },
   itucRightsRating: { type: Number, required: true },
   corruptionIndex: { type: Number, required: true },
-  migrantWorkerPrevalence: { type: Number, required: true },
+  freedomRating: { type: Number, required: true },
   wjpIndex: { type: Number, required: true },
-  walkfreeSlaveryIndex: { type: Number, required: true },
-  baseRiskScore: { type: Number, required: true }
+  walkfreeSlaveryIndex: { type: Number, required: true }
 });
 
 const Country = mongoose.model('Country', countrySchema);
@@ -216,11 +214,11 @@ app.post('/api/calculate-risk', async (req, res) => {
     const sanitizedWeights = sanitizeWeights(weights);
 
     // Calculate weighted risk score
-    // Weights order: ITUC_Rights_Rating, Corruption_Index_TI, ILO_Migrant_Worker_Prevalence, WJP_index, Walkfree_Slavery_Index
+     // Weights order: ITUC_Rights_Rating, Corruption_Index_TI, Freedom_rating, WJP_index, Walkfree_Slavery_Index
     const values = [
       country.itucRightsRating,
       country.corruptionIndex,
-      country.migrantWorkerPrevalence,
+      country.freedomRating,
       country.wjpIndex,
       country.walkfreeSlaveryIndex
     ];
@@ -242,7 +240,6 @@ app.post('/api/calculate-risk', async (req, res) => {
     res.json({
       country: country.name,
       isoCode: country.isoCode,
-      originalRiskScore: country.baseRiskScore,
       weightedRiskScore: Math.round(weightedRiskScore * 100) / 100,
       riskBand: getRiskBand(weightedRiskScore)
     });

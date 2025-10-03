@@ -9,10 +9,9 @@ const countrySchema = new mongoose.Schema({
   isoCode: { type: String, required: true, unique: true },
   itucRightsRating: { type: Number, required: true },
   corruptionIndex: { type: Number, required: true },
-  migrantWorkerPrevalence: { type: Number, required: true },
+  freedomRating: { type: Number, required: true },
   wjpIndex: { type: Number, required: true },
-  walkfreeSlaveryIndex: { type: Number, required: true },
-  baseRiskScore: { type: Number, required: true }
+  walkfreeSlaveryIndex: { type: Number, required: true }
 });
 
 const Country = mongoose.model('Country', countrySchema);

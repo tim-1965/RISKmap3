@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const DEFAULT_COUNTRY_FILE = path.join(__dirname, '..', 'public', 'countries.txt');
-const EXPECTED_COLUMN_COUNT = 8;
+const EXPECTED_COLUMN_COUNT = 7;
 
 function stripWrappingQuotes(value) {
   if (typeof value !== 'string') {
@@ -31,8 +31,8 @@ function loadCountriesFromFile(filePath = DEFAULT_COUNTRY_FILE) {
     throw new Error('Country data file is empty');
   }
 
-  const headerLine = stripWrappingQuotes(lines[0]);
-  const headers = headerLine.split(',');
+    const headerLine = stripWrappingQuotes(lines[0]);
+  const headers = headerLine.split(',').map(header => header.trim());
 
   if (headers.length !== EXPECTED_COLUMN_COUNT) {
     throw new Error(`Unexpected number of columns in header. Expected ${EXPECTED_COLUMN_COUNT}, received ${headers.length}`);
@@ -47,7 +47,7 @@ function loadCountriesFromFile(filePath = DEFAULT_COUNTRY_FILE) {
       continue;
     }
 
-    const values = sanitizedLine.split(',').map(value => stripWrappingQuotes(value).trim());
+     const values = sanitizedLine.split(',').map(value => stripWrappingQuotes(value).trim());
 
     if (values.length !== EXPECTED_COLUMN_COUNT) {
       throw new Error(
@@ -55,7 +55,15 @@ function loadCountriesFromFile(filePath = DEFAULT_COUNTRY_FILE) {
       );
     }
 
-    const [name, isoCode, itucRightsRating, corruptionIndex, migrantWorkerPrevalence, wjpIndex, walkfreeSlaveryIndex, baseRiskScore] = values;
+    const [
+      name,
+      isoCode,
+      itucRightsRating,
+      corruptionIndex,
+      freedomRating,
+      wjpIndex,
+      walkfreeSlaveryIndex
+    ] = values;
 
     if (!isoCode) {
       throw new Error(`Missing ISO code on line ${i + 1}`);
@@ -74,10 +82,9 @@ function loadCountriesFromFile(filePath = DEFAULT_COUNTRY_FILE) {
       isoCode,
       itucRightsRating: toNumber(itucRightsRating),
       corruptionIndex: toNumber(corruptionIndex),
-      migrantWorkerPrevalence: toNumber(migrantWorkerPrevalence),
+      freedomRating: toNumber(freedomRating),
       wjpIndex: toNumber(wjpIndex),
-      walkfreeSlaveryIndex: toNumber(walkfreeSlaveryIndex),
-      baseRiskScore: toNumber(baseRiskScore)
+      walkfreeSlaveryIndex: toNumber(walkfreeSlaveryIndex)
     });
   }
 

@@ -611,6 +611,85 @@ function showComparisonMapTooltip(event, countryData, countryRisks, countryMetad
   .style('top', (pageY - 10) + 'px');
 }
 
+function showMultiRiskTooltip(
+  event,
+  countryData,
+  {
+    baselineRisks = {},
+    managedRisks = {},
+    optimizedRisks = {}
+  } = {},
+  countryMetadata = new Map(),
+  nameLookup = new Map(),
+  { mode = 'baseline', highlight = false } = {}
+) {
+  const countryId = countryData.__isoCode;
+  const countryName = countryMetadata.get(countryId)?.name
+    || countryData.properties?.NAME
+    || countryId
+    || 'Unknown';
+
+  const getRiskEntry = (label, value, accent) => {
+    if (!Number.isFinite(value)) {
+      return `
+        <div style="margin-top: 4px;">
+          <strong style="color: ${accent};">${label}:</strong>
+          <span style="color: #cbd5f5;">N/A</span>
+        </div>
+      `;
+    }
+
+    const band = riskEngine.getRiskBand(value);
+    return `
+      <div style="margin-top: 4px;">
+        <strong style="color: ${accent};">${label}:</strong>
+        <span style="color: #f8fafc;">${value.toFixed(1)}</span>
+        <span style="color: #cbd5f5;">(${band})</span>
+      </div>
+    `;
+  };
+
+  const entries = [
+    getRiskEntry('Baseline', baselineRisks?.[countryId], '#1d4ed8'),
+    getRiskEntry('Managed', managedRisks?.[countryId], '#059669'),
+    getRiskEntry('Optimized', optimizedRisks?.[countryId], '#7c3aed')
+  ].join('');
+
+  d3.selectAll('.map-tooltip').remove();
+
+  const tooltip = d3.select('body')
+    .append('div')
+    .attr('class', 'map-tooltip')
+    .style('position', 'absolute')
+    .style('background', 'rgba(15, 23, 42, 0.95)')
+    .style('color', 'white')
+    .style('padding', '12px 14px')
+    .style('border-radius', '10px')
+    .style('font-size', '12px')
+    .style('pointer-events', 'none')
+    .style('box-shadow', '0 6px 18px rgba(15, 23, 42, 0.35)')
+    .style('opacity', 0);
+
+  tooltip.transition().duration(200).style('opacity', 1);
+
+  const pageX = event.pageX || 0;
+  const pageY = event.pageY || 0;
+  const highlightNote = highlight
+    ? '<div style="margin-top: 8px; font-size: 11px; color: #fbbf24;">Selected supply chain country</div>'
+    : '';
+
+  tooltip.html(`
+    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">${countryName}</div>
+    ${entries}
+    ${mode === 'optimized' && !Number.isFinite(optimizedRisks?.[countryId])
+      ? '<div style="margin-top: 6px; font-size: 11px; color: #cbd5f5;">Optimization results unavailable for this country.</div>'
+      : ''}
+    ${highlightNote}
+  `)
+  .style('left', (pageX + 12) + 'px')
+  .style('top', (pageY - 16) + 'px');
+}
+
 function hideMapTooltip() {
   d3.selectAll('.map-tooltip').remove();
 }
@@ -639,6 +718,236 @@ function createMapLegend(containerId) {
   });
 
   container.appendChild(legendContainer);
+}
+
+function getCostAnalysisRiskValue({
+  mode,
+  countryId,
+  baselineRisks,
+  managedRisks,
+  optimizedRisks
+}) {
+  const datasets = {
+    baseline: baselineRisks,
+    managed: managedRisks,
+    optimized: optimizedRisks
+  };
+
+  const selectedDataset = datasets[mode] || baselineRisks || {};
+  let riskValue = selectedDataset?.[countryId];
+
+  if (!Number.isFinite(riskValue)) {
+    if (mode === 'optimized') {
+      riskValue = Number.isFinite(managedRisks?.[countryId])
+        ? managedRisks[countryId]
+        : baselineRisks?.[countryId];
+    } else if (mode === 'managed') {
+      riskValue = baselineRisks?.[countryId];
+    }
+  }
+
+  return Number.isFinite(riskValue) ? riskValue : undefined;
+}
+
+function renderCostAnalysisD3Map(worldData, {
+  container,
+  countries,
+  selectedCountries,
+  baselineRisks,
+  managedRisks,
+  optimizedRisks,
+  mode,
+  width,
+  height
+}) {
+  const wrapper = document.getElementById(container);
+  if (!wrapper) return;
+
+  wrapper.innerHTML = '';
+
+  try {
+    const features = extractWorldFeatures(worldData);
+    if (!features.length) throw new Error('No geographic features available');
+
+    const featureCollection = { type: 'FeatureCollection', features };
+    const { width: responsiveWidth, height: responsiveHeight } = getResponsiveDimensions(wrapper, width, height);
+    const svg = d3.select(wrapper)
+      .append('svg')
+      .attr('viewBox', `0 0 ${responsiveWidth} ${responsiveHeight}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet')
+      .style('width', '100%')
+      .style('height', 'auto')
+      .style('border', '1px solid #e2e8f0')
+      .style('border-radius', '12px')
+      .style('background', '#f8fafc');
+
+    const projection = d3.geoNaturalEarth1()
+      .fitExtent([[16, 16], [responsiveWidth - 16, responsiveHeight - 16]], featureCollection);
+    const path = d3.geoPath(projection);
+    const mapGroup = svg.append('g').attr('class', 'map-layer');
+
+    mapGroup.append('path')
+      .datum({ type: 'Sphere' })
+      .attr('d', path)
+      .attr('fill', '#e0f2fe')
+      .attr('stroke', '#bae6fd')
+      .attr('stroke-width', 0.6)
+      .attr('pointer-events', 'none');
+
+    const safeSelectedCountries = Array.isArray(selectedCountries) ? selectedCountries : [];
+    const selectedSet = new Set(safeSelectedCountries);
+    const hasSelections = selectedSet.size > 0;
+
+    const metadataMap = new Map(countries.map(country => [country.isoCode, country]));
+    const nameLookup = buildCountryNameLookup(metadataMap);
+
+    features.forEach(feature => {
+      feature.__isoCode = getFeatureIsoCode(feature, metadataMap, nameLookup);
+    });
+
+    const countryGroup = mapGroup.append('g').attr('class', 'countries');
+
+    countryGroup.selectAll('path.country')
+      .data(features)
+      .enter()
+      .append('path')
+      .attr('class', 'country')
+      .attr('data-iso-code', d => d.__isoCode || '')
+      .attr('d', path)
+      .style('cursor', 'default')
+      .style('fill', d => {
+        const countryId = d.__isoCode;
+        const riskValue = getCostAnalysisRiskValue({
+          mode,
+          countryId,
+          baselineRisks,
+          managedRisks,
+          optimizedRisks
+        });
+        return Number.isFinite(riskValue) ? riskEngine.getRiskColor(riskValue) : '#e5e7eb';
+      })
+      .style('fill-opacity', d => {
+        if (!hasSelections) return 0.95;
+        return selectedSet.has(d.__isoCode) ? 0.95 : 0.25;
+      })
+      .style('stroke', d => (selectedSet.has(d.__isoCode) ? '#0f172a' : '#cbd5f5'))
+      .style('stroke-width', d => (selectedSet.has(d.__isoCode) ? 1.6 : 0.8))
+      .style('filter', d => (selectedSet.has(d.__isoCode)
+        ? 'drop-shadow(0 0 6px rgba(15, 23, 42, 0.35))'
+        : 'none'))
+      .on('mouseover', (event, d) => showMultiRiskTooltip(event, d, {
+        baselineRisks,
+        managedRisks,
+        optimizedRisks
+      }, metadataMap, nameLookup, {
+        mode,
+        highlight: selectedSet.has(d.__isoCode)
+      }))
+      .on('mouseout', () => hideMapTooltip());
+
+    const zoom = d3.zoom()
+      .scaleExtent([0.5, 10])
+      .on('zoom', event => {
+        mapGroup.attr('transform', event.transform);
+      });
+
+    svg.call(zoom);
+    disableMouseWheelZoom(svg);
+    addZoomControls(svg, zoom);
+  } catch (error) {
+    console.warn('Cost analysis map rendering failed, falling back to simple grid.', error);
+    createSimpleMapGrid(container, {
+      countries,
+      countryRisks: mode === 'optimized' && Object.keys(optimizedRisks || {}).length > 0
+        ? optimizedRisks
+        : mode === 'managed' && Object.keys(managedRisks || {}).length > 0
+          ? managedRisks
+          : baselineRisks,
+      selectedCountries,
+      interactive: false,
+      mapType: mode
+    });
+  }
+}
+
+export async function renderCostAnalysisMap(containerId, {
+  countries = [],
+  selectedCountries = [],
+  baselineRisks = {},
+  managedRisks = {},
+  optimizedRisks = {},
+  mode = 'baseline',
+  legendContainerId = null,
+  height = 380,
+  width = 960
+} = {}) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  container.innerHTML = `
+    <div id="${containerId}-loading" style="padding: 32px; text-align: center; color: #475569;">
+      <div style="font-weight: 600;">Loading global risk map...</div>
+      <div style="font-size: 12px; color: #94a3b8; margin-top: 6px;">Hover to compare baseline, managed, and optimized scores.</div>
+    </div>
+  `;
+
+  const safeBaseline = (baselineRisks && typeof baselineRisks === 'object') ? baselineRisks : {};
+  const safeManaged = (managedRisks && typeof managedRisks === 'object') ? managedRisks : {};
+  const safeOptimized = (optimizedRisks && typeof optimizedRisks === 'object') ? optimizedRisks : {};
+  const safeCountries = Array.isArray(countries) ? countries : [];
+  const safeSelected = Array.isArray(selectedCountries) ? selectedCountries : [];
+
+  try {
+    await loadD3();
+    const worldData = await loadWorldData();
+
+    if (worldData?.type === 'Topology') {
+      try {
+        await loadTopoJSON();
+      } catch (topojsonError) {
+        console.warn('TopoJSON unavailable for cost analysis map; using fallback conversion.', topojsonError);
+      }
+    }
+
+    renderCostAnalysisD3Map(worldData, {
+      container: containerId,
+      countries: safeCountries,
+      selectedCountries: safeSelected,
+      baselineRisks: safeBaseline,
+      managedRisks: safeManaged,
+      optimizedRisks: safeOptimized,
+      mode,
+      width,
+      height: Math.max(height, 320)
+    });
+
+    if (legendContainerId) {
+      createMapLegend(legendContainerId);
+    }
+
+    const loadingElement = document.getElementById(`${containerId}-loading`);
+    if (loadingElement) loadingElement.remove();
+  } catch (error) {
+    console.error('Error rendering cost analysis map:', error);
+    container.innerHTML = '';
+    createFallbackMap(containerId, {
+      countries: safeCountries,
+      countryRisks: mode === 'optimized' && Object.keys(safeOptimized).length > 0
+        ? safeOptimized
+        : mode === 'managed' && Object.keys(safeManaged).length > 0
+          ? safeManaged
+          : safeBaseline,
+      selectedCountries: safeSelected,
+      onCountrySelect: null,
+      title: '',
+      interactive: false,
+      mapType: mode
+    });
+
+    if (legendContainerId) {
+      createMapLegend(legendContainerId);
+    }
+  }
 }
 
 function createSimpleMapGrid(containerId, { countries, countryRisks, selectedCountries = [], onCountrySelect, title, interactive = true, mapType = 'baseline' }) {
