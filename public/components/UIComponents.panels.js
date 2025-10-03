@@ -814,12 +814,12 @@ export function createResponsivenessPanel(containerId, { responsiveness, onRespo
 
   const toolLabels = riskEngine.hrddStrategyLabels;
   const toolDescriptions = [
-    'Always-on worker voice helps design and follow through on remedies that stick.',
-    'Structured surveys surface themes to address root causes when action plans follow.',
-    'Surprise audits can force remediation plans but need reinforcement to sustain change.',
-    'Planned audits document issues yet risk superficial fixes without additional pressure.',
-    'Evidence-backed SAQs support remedy when buyers use the evidence to drive commitments.',
-    'Self-attested SAQs rarely enable sustained remedy without other levers.'
+    'It is "always-on" and automatically monitors remedy delivery and follow-up.',
+    'Structured surveys require repetition to monitor delivery and follow-up.',
+    'Surprise audits check the reality of remedy delivery when they happen.',
+    'Self-arranged/planned audits superficially check remedy when they happen.',
+    'Evidence-backed SAQs support remedy if used to drive supplier commitments.',
+    'Self-attested SAQs rarely enable remedy without other levers.'
   ];
 
   const categoryInfo = [
@@ -868,7 +868,7 @@ export function createResponsivenessPanel(containerId, { responsiveness, onRespo
   container.innerHTML = `
     <div class="responsiveness-panel" style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; height: 100%;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h2 style="font-size: 20px; font-weight: bold; color: #1f2937;">Sustained Remedy from Tools</h2>
+        <h2 style="font-size: 20px; font-weight: bold; color: #1f2937;">Remedy Support</h2>
         <button id="resetResponsiveness" style="padding: 10px 20px; background-color: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
           Reset to Default
         </button>
@@ -903,11 +903,11 @@ export function createResponsivenessPanel(containerId, { responsiveness, onRespo
         ${toolDescriptions[index]}
       </div>
       <div style="display: flex; align-items: center; gap: 12px; padding-top: 4px;">
-        <span style="font-size: 11px; color: #6b7280; min-width: 120px; text-align: left;">Rarely sustains remedy</span>
+        <span style="font-size: 11px; color: #6b7280; min-width: 120px; text-align: left;">No support</span>
         <div style="flex: 1; position: relative; display: flex; align-items: center;">
           <input type="range" min="0" max="100" value="${localResponsiveness[index]}" id="responsiveness_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db; accent-color: ${categoryColor};">
         </div>
-        <span style="font-size: 11px; color: #6b7280; min-width: 120px; text-align: right;">Delivers lasting remedy</span>
+        <span style="font-size: 11px; color: #6b7280; min-width: 120px; text-align: right;">Full support</span>
       </div>
     `;
     responsivenessContainer.appendChild(responsivenessControl);
@@ -1049,7 +1049,7 @@ export function createResponsivenessEffectivenessPanel(containerId, { effectiven
         ${conductDescriptions[index]}
       </div>
        <div style="display: flex; align-items: center; gap: 12px; padding-top: 4px;">
-        <span style="font-size: 11px; color: #6b7280; min-width: 120px; text-align: left;">No conduct change</span>
+        <span style="font-size: 11px; color: #6b7280; min-width: 120px; text-align: left;">No effect</span>
         <div style="flex: 1; position: relative; display: flex; align-items: center;">
           <input type="range" min="0" max="100" value="${localEffectiveness[index]}" id="responsivenessEffectiveness_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db; accent-color: ${categoryColor};">
         </div>

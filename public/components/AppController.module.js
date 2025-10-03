@@ -422,24 +422,6 @@ this.optimizeBudgetAllocation = this.optimizeBudgetAllocation.bind(this);
     const updatedStrategy = [...next];
     this.state.hrddStrategy = updatedStrategy;
 
-    // Keep the linked responsiveness slider (panel 4) in sync
-    const linkedVoiceValue = Number.isFinite(updatedStrategy[0]) ? updatedStrategy[0] : 0;
-    const currentResponsiveness = Array.isArray(this.state.responsivenessStrategy)
-      ? [...this.state.responsivenessStrategy]
-      : [];
-
-    if (currentResponsiveness[0] !== linkedVoiceValue) {
-      currentResponsiveness[0] = linkedVoiceValue;
-      this.state.responsivenessStrategy = currentResponsiveness;
-
-      if (typeof window !== 'undefined') {
-        const updateResponsivenessUI = window.hrddApp?.updateResponsivenessUI || window.updateResponsivenessUI;
-        if (typeof updateResponsivenessUI === 'function') {
-          updateResponsivenessUI(0, linkedVoiceValue, { notify: false });
-        }
-      }
-    }
-
     this.state.isDirty = true;
 
     this.strategyTimeout = setTimeout(() => {
@@ -448,7 +430,6 @@ this.optimizeBudgetAllocation = this.optimizeBudgetAllocation.bind(this);
       this.updateUI();
     }, 300);
   }
-
 
   onTransparencyChange(next) {
     if (!Array.isArray(next)) return;
@@ -469,29 +450,6 @@ this.optimizeBudgetAllocation = this.optimizeBudgetAllocation.bind(this);
 
     const updatedResponsiveness = [...next];
     this.state.responsivenessStrategy = updatedResponsiveness;
-
-    // Keep the linked HRDD strategy slider (panel 3) in sync
-    const linkedVoiceValue = Number.isFinite(updatedResponsiveness[0]) ? updatedResponsiveness[0] : 0;
-    const currentStrategy = Array.isArray(this.state.hrddStrategy)
-      ? [...this.state.hrddStrategy]
-      : [];
-
-    if (currentStrategy[0] !== linkedVoiceValue) {
-      currentStrategy[0] = linkedVoiceValue;
-      this.state.hrddStrategy = currentStrategy;
-
-      if (typeof window !== 'undefined') {
-        const updateStrategyUI = window.hrddApp?.updateHRDDStrategyUI || window.updateHRDDStrategyUI;
-        if (typeof updateStrategyUI === 'function') {
-          updateStrategyUI(0, linkedVoiceValue, { notify: false });
-        } else {
-          const slider = document.getElementById('strategy_0');
-          const numberInput = document.getElementById('strategyNum_0');
-          if (slider) slider.value = linkedVoiceValue;
-          if (numberInput) numberInput.value = linkedVoiceValue;
-        }
-      }
-    }
 
     this.state.isDirty = true;
 
