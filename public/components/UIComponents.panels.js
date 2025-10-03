@@ -2307,23 +2307,22 @@ export function createCostAnalysisPanel(containerId, options) {
     <div class="cost-analysis-panel" style="background: white; padding: ${responsive('16px', '24px')}; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
 
       <!-- Header Section -->
-      <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
-        <div id="costAnalysisMapSection" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: ${responsive('16px', '20px')}; display: flex; flex-direction: column; gap: ${responsive('12px', '16px')}; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);">
-          <div style="display: flex; flex-direction: ${responsive('column', 'row')}; justify-content: space-between; align-items: ${responsive('flex-start', 'center')}; gap: 12px;">
-            <div>
+     <div style="display: flex; flex-direction: column; gap: ${responsive('12px', '16px')};">
+            <div style="display: flex; flex-direction: column; gap: ${responsive('6px', '8px')};">
               <h3 style="font-size: ${responsive('16px', '18px')}; font-weight: 600; color: #1f2937; margin: 0;">Global Risk Outlook</h3>
-              <p style="font-size: ${responsive('12px', '13px')}; color: #4b5563; margin: 6px 0 0;">Compare baseline, managed, and optimized risk levels for your selected supply chain countries.</p>
-              <div id="costAnalysisMapStatus" style="font-size: ${responsive('11px', '12px')}; color: #475569; margin-top: 6px;"></div>
+              <p style="font-size: ${responsive('12px', '13px')}; color: #4b5563; margin: 0;">Compare baseline, managed, and optimized risk levels for your selected supply chain countries.</p>
+              <div id="costAnalysisMapStatus" style="font-size: ${responsive('11px', '12px')}; color: #475569;"></div>
             </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 8px; background: #e2e8f0; padding: 6px; border-radius: 9999px;">
+            <div style="display: flex; flex-wrap: wrap; gap: ${responsive('8px', '12px')};">
               <button type="button" class="cost-map-mode" data-map-mode="baseline"
-                      style="border: none; background: white; color: #1f2937; font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 9999px; cursor: pointer; box-shadow: none;">Baseline risk</button>
+                      style="border: 1px solid #cbd5f5; background: #f8fafc; color: #1f2937; font-size: 12px; font-weight: 600; padding: 10px 18px; border-radius: 9999px; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); transition: all 0.2s ease;">Baseline risk</button>
               <button type="button" class="cost-map-mode" data-map-mode="managed"
-                      style="border: none; background: transparent; color: #1f2937; font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 9999px; cursor: pointer; box-shadow: none;">Managed risk</button>
+                      style="border: 1px solid #cbd5f5; background: #f8fafc; color: #1f2937; font-size: 12px; font-weight: 600; padding: 10px 18px; border-radius: 9999px; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); transition: all 0.2s ease;">Managed risk</button>
               <button type="button" class="cost-map-mode" data-map-mode="optimized"
-                      style="border: none; background: transparent; color: #1f2937; font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 9999px; cursor: pointer; box-shadow: none;">Optimized risk</button>
+                      style="border: 1px solid #cbd5f5; background: #f8fafc; color: #1f2937; font-size: 12px; font-weight: 600; padding: 10px 18px; border-radius: 9999px; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); transition: all 0.2s ease;">Optimized risk</button>
             </div>
           </div>
+          <div id="costAnalysisMapCanvas" style="width: 100%; aspect-ratio: 16 / 9; min-height: ${responsive('260px', '360px')}; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);"></div>
           <div id="costAnalysisMapCanvas" style="width: 100%; min-height: ${responsive('260px', '360px')}; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);"></div>
           <div id="costAnalysisMapLegend" style="display: flex; justify-content: center; flex-wrap: wrap; gap: 12px;"></div>
         </div>
@@ -2522,7 +2521,7 @@ export function createCostAnalysisPanel(containerId, options) {
         const isActive = mode === currentMode;
         const swatch = palette[mode] || palette.baseline;
 
-        if (mode === 'optimized') {
+      if (mode === 'optimized') {
           const enabled = hasOptimizedData();
           button.disabled = !enabled;
           button.style.opacity = enabled ? '1' : '0.45';
@@ -2537,10 +2536,14 @@ export function createCostAnalysisPanel(containerId, options) {
           button.style.background = swatch.background;
           button.style.color = swatch.color;
           button.style.boxShadow = '0 6px 16px rgba(15, 23, 42, 0.18)';
+          button.style.borderColor = swatch.background;
+          button.style.transform = 'translateY(-1px)';
         } else {
-          button.style.background = 'transparent';
+          button.style.background = '#f8fafc';
           button.style.color = '#1f2937';
-          button.style.boxShadow = 'none';
+          button.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.08)';
+          button.style.borderColor = '#cbd5f5';
+          button.style.transform = 'none';
         }
       });
     };
