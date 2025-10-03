@@ -902,12 +902,14 @@ export function createResponsivenessPanel(containerId, { responsiveness, onRespo
       <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; font-style: italic;">
         ${toolDescriptions[index]}
       </div>
-      <div style="display: flex; align-items: center; gap: 12px; padding-top: 4px;">
-        <span style="font-size: 11px; color: #6b7280; min-width: 120px; text-align: left;">No support</span>
-        <div style="flex: 1; position: relative; display: flex; align-items: center;">
+      <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 4px;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #6b7280;">
+          <span style="text-align: left;">No support</span>
+          <span style="text-align: right;">Full support</span>
+        </div>
+        <div style="position: relative; display: flex; align-items: center;">
           <input type="range" min="0" max="100" value="${localResponsiveness[index]}" id="responsiveness_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db; accent-color: ${categoryColor};">
         </div>
-        <span style="font-size: 11px; color: #6b7280; min-width: 120px; text-align: right;">Full support</span>
       </div>
     `;
     responsivenessContainer.appendChild(responsivenessControl);
@@ -1048,12 +1050,14 @@ export function createResponsivenessEffectivenessPanel(containerId, { effectiven
       <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; font-style: italic;">
         ${conductDescriptions[index]}
       </div>
-       <div style="display: flex; align-items: center; gap: 12px; padding-top: 4px;">
-        <span style="font-size: 11px; color: #6b7280; min-width: 120px; text-align: left;">No effect</span>
-        <div style="flex: 1; position: relative; display: flex; align-items: center;">
+        <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 4px;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #6b7280;">
+          <span style="text-align: left;">No effect</span>
+          <span style="text-align: right;">Promotes good conduct</span>
+        </div>
+        <div style="position: relative; display: flex; align-items: center;">
           <input type="range" min="0" max="100" value="${localEffectiveness[index]}" id="responsivenessEffectiveness_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db; accent-color: ${categoryColor};">
         </div>
-        <span style="font-size: 11px; color: #6b7280; min-width: 120px; text-align: right;">Promotes good conduct</span>
       </div>
     `;
     effectivenessContainer.appendChild(effectivenessControl);
@@ -1377,54 +1381,145 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
     focusShareOfTotal = totalReduction !== 0 ? (focusStageReduction / totalReduction) * 100 : 0;
   }
 
-  const detectionBreakdownHtml = detectionBreakdown.length > 0
-    ? detectionBreakdown.map(item => {
-        const color = categoryColors[item.category] || '#3b82f6';
-        const coverageDisplay = item.coverageRange ? 
-          `Coverage: ${item.coverageRange} (focus-adjusted)` : 
-          `Coverage: ${formatNumber(item.coverage, 0)}%`;
-      return `
-          <div style="padding: 12px 14px; border: 1px solid ${color}30; border-left: 4px solid ${color}; border-radius: 8px; background-color: white; display: flex; flex-direction: column; gap: 6px;">
-            <div style="font-weight: 600; color: #1f2937;">${item.name}</div>
-            <div style="font-size: 12px; color: #4b5563;">
-              ${coverageDisplay} • Assumed detection: ${formatNumber(item.assumedEffectiveness, 0)}%
-            </div>
-            <div style="font-size: 12px; color: #1e40af;">
-              Contributes ${formatNumber(item.riskPoints)} pts (${formatNumber(item.percentOfTotal)}% of total reduction)
-            </div>
-          </div>
-        `;
-      }).join('')
-    : '<div style="padding: 12px 14px; border: 1px dashed #94a3b8; border-radius: 8px; background-color: #f8fafc; color: #475569; font-size: 12px;">Adjust your coverage in Panel 3 to unlock detection-driven risk reduction.</div>';
+ const toolLabels = Array.isArray(riskEngine.hrddStrategyLabels)
+    ? riskEngine.hrddStrategyLabels
+    : detectionBreakdown.map(item => item.name);
 
-  const remedyBreakdownHtml = remedyBreakdown.length > 0
-    ? remedyBreakdown.map(item => `
-        <div style="padding: 12px 14px; border: 1px solid #a855f730; border-left: 4px solid #8b5cf6; border-radius: 8px; background-color: white; display: flex; flex-direction: column; gap: 6px;">
-          <div style="font-weight: 600; color: #312e81;">${item.name}</div>
-          <div style="font-size: 12px; color: #4c1d95;">
-            Coverage applied: ${formatNumber(item.coverage, 0)}% • Sustained remedy: ${formatNumber(item.effectiveness, 0)}%
+  const toolCategoryLookup = strategies.reduce((acc, strategy) => {
+    if (strategy?.name) {
+      acc[strategy.name] = strategy.category;
+    }
+    return acc;
+  }, {});
+
+  const detectionVerbLabel = detectionStageVerb === 'removed' ? 'Removes' : 'Adds';
+  const remedyVerbLabel = remedyStageVerb === 'removed' ? 'Removes' : 'Adds';
+  const conductVerbLabel = conductStageVerb === 'removed' ? 'Removes' : 'Adds';
+
+  const stageConfigs = {
+    detection: {
+      title: 'Panel 3 · Detection coverage',
+      border: '#bfdbfe',
+      background: '#eff6ff',
+      text: '#1d4ed8',
+      highlight: '#1e40af',
+      muted: '#1e3a8a',
+      dashedColor: '#94a3b8',
+      emptyBg: '#f8fafc',
+      emptyText: '#475569',
+      emptyMessage: 'Adjust your coverage in Panel 3 to unlock detection-driven risk reduction.',
+      verbLabel: detectionVerbLabel,
+      shareLabel: 'detection change',
+      coverage: (item) => {
+        const coverageText = item.coverageRange
+          ? `Coverage: ${item.coverageRange}`
+          : `Coverage: ${formatNumber(item.coverage, 0)}%`;
+        const detectionRate = Number.isFinite(item.assumedEffectiveness)
+          ? ` • Detection: ${formatNumber(item.assumedEffectiveness, 0)}%`
+          : '';
+        return `${coverageText}${detectionRate}`;
+      }
+    },
+    remedy: {
+      title: 'Panel 4 · Sustained remedy',
+      border: '#ddd6fe',
+      background: '#f5f3ff',
+      text: '#5b21b6',
+      highlight: '#6d28d9',
+      muted: '#4c1d95',
+      dashedColor: '#c4b5fd',
+      emptyBg: '#f5f3ff',
+      emptyText: '#5b21b6',
+      emptyMessage: 'Panel 4 sustained remedy scores determine how reliably issues are closed out. Calibrate them to reflect lived experience.',
+      verbLabel: remedyVerbLabel,
+      shareLabel: 'sustained remedy change',
+      coverage: (item) => `Coverage applied: ${formatNumber(item.coverage, 0)}% • Sustained remedy: ${formatNumber(item.effectiveness, 0)}%`
+    },
+    conduct: {
+      title: 'Panel 4 · Promoting good conduct',
+      border: '#99f6e4',
+      background: '#ecfdf5',
+      text: '#047857',
+      highlight: '#0f766e',
+      muted: '#0f766e',
+      dashedColor: '#0f766e40',
+      emptyBg: '#ecfdf5',
+      emptyText: '#0f766e',
+      emptyMessage: 'Panel 4 conduct assumptions capture how tools deter future harm. Use them to reflect how suppliers behave between issues.',
+      verbLabel: conductVerbLabel,
+      shareLabel: 'good conduct change',
+      coverage: (item) => `Coverage applied: ${formatNumber(item.coverage, 0)}% • Good conduct: ${formatNumber(item.effectiveness, 0)}%`
+    }
+  };
+
+  const createStageSection = (stageKey, data) => {
+    const config = stageConfigs[stageKey];
+    if (!config) return '';
+
+    if (!data) {
+      return `<div style="padding: 12px 14px; border: 1px dashed ${config.dashedColor}; border-radius: 8px; background-color: ${config.emptyBg}; color: ${config.emptyText}; font-size: 12px;">${config.emptyMessage}</div>`;
+    }
+
+    const points = Math.abs(ensureNumber(data.riskPoints, 0));
+    const percentOfTotal = Math.abs(ensureNumber(data.percentOfTotal, 0));
+    const share = Math.abs(ensureNumber(data.stageShare, 0));
+    const detailLine = typeof config.coverage === 'function' ? config.coverage(data) : '';
+    const shareLine = share > 0
+      ? `<div style="font-size: 11px; color: ${config.muted};">Share of ${config.shareLabel}: ${formatNumber(share)}%</div>`
+      : '';
+
+    return `
+      <div style="padding: 12px 14px; border: 1px solid ${config.border}; background-color: ${config.background}; border-radius: 8px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 12px; font-weight: 600; color: ${config.text};">${config.title}</div>
+        ${detailLine ? `<div style="font-size: 12px; color: ${config.muted};">${detailLine}</div>` : ''}
+        <div style="font-size: 11px; color: ${config.highlight};">${config.verbLabel} ${formatNumber(points)} pts (~${formatNumber(percentOfTotal)}% of total)</div>
+        ${shareLine}
+      </div>
+    `;
+  };
+
+  const getDetailByName = (collection, label, index) => {
+    if (!Array.isArray(collection)) return null;
+    return collection.find(item => item.name === label) || collection[index] || null;
+  };
+
+  const toolSummariesHtml = toolLabels.map((label, index) => {
+    const detectionDetail = getDetailByName(detectionBreakdown, label, index);
+    const remedyDetail = getDetailByName(remedyBreakdown, label, index);
+    const conductDetail = getDetailByName(conductBreakdown, label, index);
+    const categoryName = toolCategoryLookup[label] || detectionDetail?.category || 'Tool';
+    const accentColor = categoryColors[categoryName] || '#1f2937';
+    const totalPoints =
+      Math.abs(ensureNumber(detectionDetail?.riskPoints, 0)) +
+      Math.abs(ensureNumber(remedyDetail?.riskPoints, 0)) +
+      Math.abs(ensureNumber(conductDetail?.riskPoints, 0));
+    const totalPercent =
+      Math.abs(ensureNumber(detectionDetail?.percentOfTotal, 0)) +
+      Math.abs(ensureNumber(remedyDetail?.percentOfTotal, 0)) +
+      Math.abs(ensureNumber(conductDetail?.percentOfTotal, 0));
+
+    return `
+      <div style="border: 1px solid ${accentColor}20; border-left: 4px solid ${accentColor}; border-radius: 12px; background-color: white; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+          <div>
+            <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: ${accentColor};">${categoryName}</div>
+            <div style="font-size: 16px; font-weight: 600; color: #111827;">${label}</div>
           </div>
-          <div style="font-size: 12px; color: #6d28d9;">
-            Contributes ${formatNumber(item.riskPoints)} pts (${formatNumber(item.percentOfTotal)}% of total reduction)
+          <div style="text-align: right; font-size: 11px; color: #475569; min-width: 110px;">
+            <div style="font-size: 13px; font-weight: 600; color: #111827;">${formatNumber(totalPoints)} pts</div>
+            <div>~${formatNumber(totalPercent)}% of total</div>
           </div>
         </div>
-      `).join('')
-    : '<div style="padding: 12px 14px; border: 1px dashed #c4b5fd; border-radius: 8px; background-color: #f5f3ff; color: #5b21b6; font-size: 12px;">Panel 4 sustained remedy scores determine how reliably issues are closed out. Calibrate them to reflect lived experience.</div>';
-
-  const conductBreakdownHtml = conductBreakdown.length > 0
-    ? conductBreakdown.map(item => `
-        <div style="padding: 12px 14px; border: 1px solid #0f766e30; border-left: 4px solid #0f766e; border-radius: 8px; background-color: white; display: flex; flex-direction: column; gap: 6px;">
-          <div style="font-weight: 600; color: #115e59;">${item.name}</div>
-          <div style="font-size: 12px; color: #0f766e;">
-            Coverage applied: ${formatNumber(item.coverage, 0)}% • Good conduct: ${formatNumber(item.effectiveness, 0)}%
-          </div>
-          <div style="font-size: 12px; color: #0f766e;">
-            Contributes ${formatNumber(item.riskPoints)} pts (${formatNumber(item.percentOfTotal)}% of total reduction)
-          </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          ${createStageSection('detection', detectionDetail)}
+          ${createStageSection('remedy', remedyDetail)}
+          ${createStageSection('conduct', conductDetail)}
         </div>
-      `).join('')
-    : '<div style="padding: 12px 14px; border: 1px dashed #0f766e40; border-radius: 8px; background-color: #ecfdf5; color: #0f766e; font-size: 12px;">Panel 4 conduct assumptions capture how tools deter future harm. Use them to reflect how suppliers behave between issues.</div>';
+      </div>
+    `;
+  }).join('');
 
+  const toolsBreakdownHtml = toolSummariesHtml || '<div style="padding: 12px 14px; border: 1px dashed #cbd5f5; border-radius: 8px; background-color: #f8fafc; color: #475569; font-size: 12px;">Add tools in Panels 3 and 4 to see how each one manages risk after detection.</div>';
   container.innerHTML = `
     <div class="final-results-panel">
       <!-- RISK ASSESSMENT SUMMARY -->
@@ -1564,34 +1659,28 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
           and Panel 4 conduct promotion ${conductStageVerb} ${formatNumber(conductStageAmount)} pts (~${formatNumber(conductShareOfTotal)}%).
           Your focus on higher risk countries reduced overall risk further by ${focusStageVerb} ${formatNumber(focusStageAmount)} pts by concentrating attention on them.
         </p>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px;">
-          <div style="border: 1px solid #bfdbfe; background-color: #eff6ff; padding: 16px; border-radius: 10px; display: flex; flex-direction: column; gap: 12px;">
-            <div>
-              <div style="font-size: 14px; font-weight: 600; color: #1d4ed8;">Panel 3 · Tools strategy and detection coverage</div>
-              <div style="font-size: 12px; color: #1e40af;">${detectionStageVerb.charAt(0).toUpperCase() + detectionStageVerb.slice(1)} ${formatNumber(detectionStageAmount)} pts (~${formatNumber(detectionShareOfTotal)}% of total)</div>
+         <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div style="padding: 14px 16px; border-radius: 10px; background: linear-gradient(135deg, #eff6ff 0%, #ecfdf5 100%); border: 1px solid #cbd5f5; color: #1f2937; display: flex; flex-direction: column; gap: 10px;">
+            <div style="font-size: 14px; font-weight: 600;">Tool-by-tool impact summary</div>
+            <div style="font-size: 12px; line-height: 1.6;">
+              The cards below combine your coverage (Panel 3) with sustained remedy and good conduct assumptions (Panel 4) for each tool. They show how every lever contributes to the total risk change.
             </div>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              ${detectionBreakdownHtml}
-            </div>
-          </div>
-          <div style="border: 1px solid #ddd6fe; background-color: #f5f3ff; padding: 16px; border-radius: 10px; display: flex; flex-direction: column; gap: 12px;">
-            <div>
-              <div style="font-size: 14px; font-weight: 600; color: #5b21b6;">Panel 4 · Sustained remedy</div>
-              <div style="font-size: 12px; color: #4c1d95;">${remedyStageVerb.charAt(0).toUpperCase() + remedyStageVerb.slice(1)} ${formatNumber(remedyStageAmount)} pts (~${formatNumber(remedyShareOfTotal)}% of total)</div>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              ${remedyBreakdownHtml}
-            </div>
-          </div>
-          <div style="border: 1px solid #a7f3d0; background-color: #ecfdf5; padding: 16px; border-radius: 10px; display: flex; flex-direction: column; gap: 12px;">
-            <div>
-              <div style="font-size: 14px; font-weight: 600; color: #047857;">Panel 4 · Promoting good conduct</div>
-              <div style="font-size: 12px; color: #047857;">${conductStageVerb.charAt(0).toUpperCase() + conductStageVerb.slice(1)} ${formatNumber(conductStageAmount)} pts (~${formatNumber(conductShareOfTotal)}% of total)</div>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              ${conductBreakdownHtml}
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 9999px; background-color: rgba(191, 219, 254, 0.4); border: 1px solid rgba(59, 130, 246, 0.35); font-size: 11px; font-weight: 600; color: #1d4ed8;">
+                <span style="width: 8px; height: 8px; border-radius: 9999px; background-color: #1d4ed8;"></span>
+                Panel 3: ${detectionStageVerb.charAt(0).toUpperCase() + detectionStageVerb.slice(1)} ${formatNumber(detectionStageAmount)} pts (~${formatNumber(detectionShareOfTotal)}%)
+              </span>
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 9999px; background-color: rgba(221, 214, 254, 0.45); border: 1px solid rgba(124, 58, 237, 0.35); font-size: 11px; font-weight: 600; color: #5b21b6;">
+                <span style="width: 8px; height: 8px; border-radius: 9999px; background-color: #7c3aed;"></span>
+                Panel 4 Remedy: ${remedyStageVerb.charAt(0).toUpperCase() + remedyStageVerb.slice(1)} ${formatNumber(remedyStageAmount)} pts (~${formatNumber(remedyShareOfTotal)}%)
+              </span>
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 9999px; background-color: rgba(166, 243, 208, 0.45); border: 1px solid rgba(4, 120, 87, 0.35); font-size: 11px; font-weight: 600; color: #047857;">
+                <span style="width: 8px; height: 8px; border-radius: 9999px; background-color: #047857;"></span>
+                Panel 4 Conduct: ${conductStageVerb.charAt(0).toUpperCase() + conductStageVerb.slice(1)} ${formatNumber(conductStageAmount)} pts (~${formatNumber(conductShareOfTotal)}%)
+              </span>
             </div>
           </div>
+          ${toolsBreakdownHtml}
         </div>
         <div style="margin-top: 16px; font-size: 12px; color: #475569; background-color: #f1f5f9; border: 1px dashed #cbd5f5; border-radius: 8px; padding: 12px;">
           The concentration of effort on higher risk countries reduced risk further by ${focusStageVerb} ${formatNumber(focusStageAmount)} pts (${formatNumber(focusShareOfTotal)}% of the total change.
