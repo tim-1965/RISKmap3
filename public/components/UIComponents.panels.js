@@ -1133,55 +1133,144 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
 
   const focusLevel = ensureNumber(focusData.level);
   const focusPercent = Math.round(focusLevel * 100);
-  const focusMultiplier = ensureNumber(focusData.portfolioMultiplier, 1);
+  const focusMultiplierFallback = ensureNumber(focusData.portfolioMultiplier, 1);
   const concentrationFactor = ensureNumber(portfolioSummary.riskConcentration, 1);
 
-   const baselineValue = ensureNumber(baselineRisk);
-  const managedValue = ensureNumber(managedRisk);
+  const stageBreakdown = strategySummary.stageBreakdown || null;
+
+  const focusMultiplier = ensureNumber(
+    stageBreakdown?.focusMultiplier,
+    focusMultiplierFallback
+  );
+
+  const baselineValue = ensureNumber(
+    stageBreakdown?.baseline,
+    ensureNumber(baselineRisk)
+  );
+  const managedValue = ensureNumber(
+    stageBreakdown?.final,
+    ensureNumber(managedRisk)
+  );
   const transparencyValue = ensureNumber(strategySummary.overallTransparency);
   const responsivenessValue = ensureNumber(strategySummary.overallResponsiveness);
+  const sustainedRemedyValue = ensureNumber(strategySummary.overallSustainedRemedy);
+  const goodConductValue = ensureNumber(strategySummary.overallGoodConduct);
   const combinedEffectiveness = transparencyValue * responsivenessValue;
   const riskReductionValue = ensureNumber(improvementSummary.riskReduction);
   const absoluteReductionValue = ensureNumber(improvementSummary.absoluteReduction);
 
   const sanitizedTransparency = Math.max(0, Math.min(1, transparencyValue));
-  const sanitizedResponsiveness = Math.max(0, Math.min(1, responsivenessValue));
-  const sanitizedFocusMultiplier = Math.max(0, focusMultiplier);
+  const sanitizedRemedy = Math.max(0, Math.min(1, sustainedRemedyValue));
+  const sanitizedConduct = Math.max(0, Math.min(1, goodConductValue));
 
-  const totalReduction = ensureNumber(baselineValue - managedValue);
-  const baseReduction = sanitizedFocusMultiplier > 0
-    ? totalReduction / sanitizedFocusMultiplier
-    : 0;
-  const focusStageReduction = totalReduction - baseReduction;
+  let totalReduction = ensureNumber(baselineValue - managedValue);
+  let baseReduction = 0;
+  let focusStageReduction = 0;
+  let detectionStageReduction = 0;
+  let remedyStageReduction = 0;
+  let conductStageReduction = 0;
+  let riskAfterDetection = baselineValue;
+  let riskAfterRemedy = baselineValue;
+  let riskAfterConduct = baselineValue;
+  let detectionStepPercent = 0;
+  let remedyStepPercent = 0;
+  let conductStepPercent = 0;
+  let focusStepPercent = 0;
+  let detectionShareOfTotal = 0;
+  let remedyShareOfTotal = 0;
+  let conductShareOfTotal = 0;
+  let focusShareOfTotal = 0;
 
-  const detectionWeight = (sanitizedTransparency + sanitizedResponsiveness) > 0
-    ? sanitizedTransparency / (sanitizedTransparency + sanitizedResponsiveness)
-    : 0.5;
+  if (stageBreakdown) {
+    totalReduction = ensureNumber(stageBreakdown.totalReduction, totalReduction);
+    baseReduction = ensureNumber(stageBreakdown.baseReduction, totalReduction);
+    focusStageReduction = ensureNumber(stageBreakdown.focus?.reduction, totalReduction - baseReduction);
+    detectionStageReduction = ensureNumber(stageBreakdown.detection?.reduction, 0);
+    remedyStageReduction = ensureNumber(stageBreakdown.sustainedRemedy?.reduction, 0);
+    conductStageReduction = ensureNumber(stageBreakdown.conduct?.reduction, 0);
+    riskAfterDetection = ensureNumber(stageBreakdown.afterDetection, baselineValue - detectionStageReduction);
+    riskAfterRemedy = ensureNumber(stageBreakdown.afterRemedy, riskAfterDetection - remedyStageReduction);
+    riskAfterConduct = ensureNumber(stageBreakdown.afterConduct, riskAfterRemedy - conductStageReduction);
 
-  const detectionStageReduction = baseReduction * detectionWeight;
-  const responseStageReduction = baseReduction - detectionStageReduction;
+    detectionStepPercent = ensureNumber(
+      stageBreakdown.detection?.percentOfBaseline,
+      baselineValue > 0 ? detectionStageReduction / baselineValue : 0
+    ) * 100;
+    remedyStepPercent = ensureNumber(
+      stageBreakdown.sustainedRemedy?.percentOfBaseline,
+      baselineValue > 0 ? remedyStageReduction / baselineValue : 0
+    ) * 100;
+    conductStepPercent = ensureNumber(
+      stageBreakdown.conduct?.percentOfBaseline,
+      baselineValue > 0 ? conductStageReduction / baselineValue : 0
+    ) * 100;
+    focusStepPercent = ensureNumber(
+      stageBreakdown.focus?.percentOfBaseline,
+      baselineValue > 0 ? focusStageReduction / baselineValue : 0
+    ) * 100;
 
-  const riskAfterDetection = baselineValue - detectionStageReduction;
-  const riskAfterResponse = riskAfterDetection - responseStageReduction;
+    detectionShareOfTotal = ensureNumber(
+      stageBreakdown.detection?.shareOfTotal,
+      totalReduction !== 0 ? detectionStageReduction / totalReduction : 0
+    ) * 100;
+    remedyShareOfTotal = ensureNumber(
+      stageBreakdown.sustainedRemedy?.shareOfTotal,
+      totalReduction !== 0 ? remedyStageReduction / totalReduction : 0
+    ) * 100;
+    conductShareOfTotal = ensureNumber(
+      stageBreakdown.conduct?.shareOfTotal,
+      totalReduction !== 0 ? conductStageReduction / totalReduction : 0
+    ) * 100;
+    focusShareOfTotal = ensureNumber(
+      stageBreakdown.focus?.shareOfTotal,
+      totalReduction !== 0 ? focusStageReduction / totalReduction : 0
+    ) * 100;
+  } else {
+    baseReduction = focusMultiplier > 0 ? totalReduction / focusMultiplier : 0;
+    focusStageReduction = totalReduction - baseReduction;
+
+    const stageWeightSum = sanitizedTransparency + sanitizedRemedy + sanitizedConduct;
+    const detectionWeight = stageWeightSum > 0 ? sanitizedTransparency / stageWeightSum : 1 / 3;
+    const remedyWeight = stageWeightSum > 0 ? sanitizedRemedy / stageWeightSum : 1 / 3;
+
+    detectionStageReduction = baseReduction * detectionWeight;
+    remedyStageReduction = baseReduction * remedyWeight;
+    conductStageReduction = baseReduction - detectionStageReduction - remedyStageReduction;
+
+    riskAfterDetection = baselineValue - detectionStageReduction;
+    riskAfterRemedy = riskAfterDetection - remedyStageReduction;
+    riskAfterConduct = riskAfterRemedy - conductStageReduction;
+
+    detectionStepPercent = baselineValue > 0
+      ? (detectionStageReduction / baselineValue) * 100
+      : 0;
+    remedyStepPercent = baselineValue > 0
+      ? (remedyStageReduction / baselineValue) * 100
+      : 0;
+    conductStepPercent = baselineValue > 0
+      ? (conductStageReduction / baselineValue) * 100
+      : 0;
+    focusStepPercent = baselineValue > 0
+      ? (focusStageReduction / baselineValue) * 100
+      : 0;
+
+    detectionShareOfTotal = totalReduction !== 0 ? (detectionStageReduction / totalReduction) * 100 : 0;
+    remedyShareOfTotal = totalReduction !== 0 ? (remedyStageReduction / totalReduction) * 100 : 0;
+    conductShareOfTotal = totalReduction !== 0 ? (conductStageReduction / totalReduction) * 100 : 0;
+    focusShareOfTotal = totalReduction !== 0 ? (focusStageReduction / totalReduction) * 100 : 0;
+  }
+
   const finalManagedRisk = managedValue;
 
-  const detectionStepPercent = baselineValue > 0
-    ? (detectionStageReduction / baselineValue) * 100
-    : 0;
-  const responseStepPercent = baselineValue > 0
-    ? (responseStageReduction / baselineValue) * 100
-    : 0;
-  const focusStepPercent = baselineValue > 0
-    ? (focusStageReduction / baselineValue) * 100
-    : 0;
-
   const detectionStageAmount = Math.abs(detectionStageReduction);
-  const responseStageAmount = Math.abs(responseStageReduction);
+  const remedyStageAmount = Math.abs(remedyStageReduction);
+  const conductStageAmount = Math.abs(conductStageReduction);
   const focusStageAmount = Math.abs(focusStageReduction);
   const totalReductionAmount = Math.abs(totalReduction);
 
   const detectionStageVerb = detectionStageReduction >= 0 ? 'removed' : 'added';
-  const responseStageVerb = responseStageReduction >= 0 ? 'removed' : 'added';
+  const remedyStageVerb = remedyStageReduction >= 0 ? 'removed' : 'added';
+  const conductStageVerb = conductStageReduction >= 0 ? 'removed' : 'added';
   const focusStageVerb = focusStageReduction >= 0 ? 'removed' : 'added';
   const totalReductionVerb = totalReduction >= 0 ? 'removed' : 'added';
 
@@ -1224,53 +1313,69 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
     };
   });
 
-  const responseLabels = Array.isArray(riskEngine.responsivenessLabels)
-    ? riskEngine.responsivenessLabels
+  const sustainedRemedyDetails = Array.isArray(strategySummary.sustainedRemedyDetails)
+    ? strategySummary.sustainedRemedyDetails
+    : [];
+  const goodConductDetails = Array.isArray(strategySummary.goodConductDetails)
+    ? strategySummary.goodConductDetails
     : [];
 
-  const sanitizedResponseWeights = Array.isArray(responsivenessStrategy)
-    ? responsivenessStrategy.map(value => Math.max(0, ensureNumber(value)))
-    : [];
-  const sanitizedResponseEffectiveness = Array.isArray(responsivenessEffectiveness)
-    ? responsivenessEffectiveness.map(value => Math.max(0, ensureNumber(value)))
-    : [];
+  const rawRemedyContribution = ensureNumber(strategySummary.sustainedRemedyContribution);
+  const totalRemedyContribution = rawRemedyContribution > 0
+    ? rawRemedyContribution
+    : sustainedRemedyDetails.reduce((sum, detail) => sum + Math.max(0, ensureNumber(detail?.weightedEffect)), 0);
 
-  const totalResponseWeight = sanitizedResponseWeights.reduce((sum, value) => sum + value, 0);
+  const rawConductContribution = ensureNumber(strategySummary.goodConductContribution);
+  const totalConductContribution = rawConductContribution > 0
+    ? rawConductContribution
+    : goodConductDetails.reduce((sum, detail) => sum + Math.max(0, ensureNumber(detail?.weightedEffect)), 0);
 
-  const responseDetails = responseLabels.map((label, index) => {
-    const weight = sanitizedResponseWeights[index] || 0;
-    const shareOfIssues = totalResponseWeight > 0 ? weight / totalResponseWeight : 0;
-    const assumedEffectiveness = sanitizedResponseEffectiveness[index] || 0;
-    const contributionScore = shareOfIssues * (assumedEffectiveness / 100);
-
-    return {
-      name: label,
-      shareOfIssues,
-      assumedEffectiveness,
-      contributionScore
-    };
-  });
-
-  const totalResponseContribution = responseDetails.reduce((sum, detail) => sum + detail.contributionScore, 0);
-
-  const responseBreakdown = responseDetails.map(detail => {
-    const stageShare = totalResponseContribution > 0 ? detail.contributionScore / totalResponseContribution : 0;
-    const riskPoints = responseStageReduction * stageShare;
+  const remedyBreakdown = sustainedRemedyDetails.map(detail => {
+    const contributionValue = Math.max(0, ensureNumber(detail?.weightedEffect));
+    const stageShare = totalRemedyContribution > 0
+      ? contributionValue / totalRemedyContribution
+      : (sustainedRemedyDetails.length > 0 ? 1 / sustainedRemedyDetails.length : 0);
+    const riskPoints = remedyStageReduction * stageShare;
     const percentOfTotal = totalReduction !== 0
       ? (riskPoints / totalReduction) * 100
       : 0;
 
     return {
-      ...detail,
+      name: detail?.name || 'Tool',
+      coverage: ensureNumber(detail?.coverage),
+      effectiveness: ensureNumber(detail?.effectiveness),
+      stageShare: remedyStageReduction !== 0 ? stageShare * 100 : 0,
       riskPoints,
-      percentOfTotal,
-      stageShare: responseStageReduction !== 0 ? stageShare * 100 : 0
+      percentOfTotal
     };
   });
 
-  const detectionShareOfTotal = totalReduction !== 0 ? (detectionStageReduction / totalReduction) * 100 : 0;
-  const responseShareOfTotal = totalReduction !== 0 ? (responseStageReduction / totalReduction) * 100 : 0;
-  const focusShareOfTotal = totalReduction !== 0 ? (focusStageReduction / totalReduction) * 100 : 0;
+  const conductBreakdown = goodConductDetails.map(detail => {
+    const contributionValue = Math.max(0, ensureNumber(detail?.weightedEffect));
+    const stageShare = totalConductContribution > 0
+      ? contributionValue / totalConductContribution
+      : (goodConductDetails.length > 0 ? 1 / goodConductDetails.length : 0);
+    const riskPoints = conductStageReduction * stageShare;
+    const percentOfTotal = totalReduction !== 0
+      ? (riskPoints / totalReduction) * 100
+      : 0;
+
+    return {
+      name: detail?.name || 'Tool',
+      coverage: ensureNumber(detail?.coverage),
+      effectiveness: ensureNumber(detail?.effectiveness),
+      stageShare: conductStageReduction !== 0 ? stageShare * 100 : 0,
+      riskPoints,
+      percentOfTotal
+    };
+  });
+
+  if (!stageBreakdown) {
+    detectionShareOfTotal = totalReduction !== 0 ? (detectionStageReduction / totalReduction) * 100 : 0;
+    remedyShareOfTotal = totalReduction !== 0 ? (remedyStageReduction / totalReduction) * 100 : 0;
+    conductShareOfTotal = totalReduction !== 0 ? (conductStageReduction / totalReduction) * 100 : 0;
+    focusShareOfTotal = totalReduction !== 0 ? (focusStageReduction / totalReduction) * 100 : 0;
+  }
 
   const detectionBreakdownHtml = detectionBreakdown.length > 0
     ? detectionBreakdown.map(item => {
@@ -1292,19 +1397,33 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
       }).join('')
     : '<div style="padding: 12px 14px; border: 1px dashed #94a3b8; border-radius: 8px; background-color: #f8fafc; color: #475569; font-size: 12px;">Adjust your coverage in Panel 3 to unlock detection-driven risk reduction.</div>';
 
-  const responseBreakdownHtml = responseBreakdown.length > 0
-    ? responseBreakdown.map(item => `
+  const remedyBreakdownHtml = remedyBreakdown.length > 0
+    ? remedyBreakdown.map(item => `
         <div style="padding: 12px 14px; border: 1px solid #a855f730; border-left: 4px solid #8b5cf6; border-radius: 8px; background-color: white; display: flex; flex-direction: column; gap: 6px;">
           <div style="font-weight: 600; color: #312e81;">${item.name}</div>
           <div style="font-size: 12px; color: #4c1d95;">
-            Issues addressed: ${formatNumber(item.shareOfIssues * 100, 0)}% • Assumed effectiveness: ${formatNumber(item.assumedEffectiveness, 0)}%
+            Coverage applied: ${formatNumber(item.coverage, 0)}% • Sustained remedy: ${formatNumber(item.effectiveness, 0)}%
           </div>
-          <div style="font-size: 12px; color: #5b21b6;">
+          <div style="font-size: 12px; color: #6d28d9;">
             Contributes ${formatNumber(item.riskPoints)} pts (${formatNumber(item.percentOfTotal)}% of total reduction)
           </div>
         </div>
       `).join('')
-    : '<div style="padding: 12px 14px; border: 1px dashed #c4b5fd; border-radius: 8px; background-color: #f5f3ff; color: #5b21b6; font-size: 12px;">Allocate response effort in Panel 4 to translate detections into remediation.</div>';
+    : '<div style="padding: 12px 14px; border: 1px dashed #c4b5fd; border-radius: 8px; background-color: #f5f3ff; color: #5b21b6; font-size: 12px;">Panel 4 sustained remedy scores determine how reliably issues are closed out. Calibrate them to reflect lived experience.</div>';
+
+  const conductBreakdownHtml = conductBreakdown.length > 0
+    ? conductBreakdown.map(item => `
+        <div style="padding: 12px 14px; border: 1px solid #0f766e30; border-left: 4px solid #0f766e; border-radius: 8px; background-color: white; display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-weight: 600; color: #115e59;">${item.name}</div>
+          <div style="font-size: 12px; color: #0f766e;">
+            Coverage applied: ${formatNumber(item.coverage, 0)}% • Good conduct: ${formatNumber(item.effectiveness, 0)}%
+          </div>
+          <div style="font-size: 12px; color: #0f766e;">
+            Contributes ${formatNumber(item.riskPoints)} pts (${formatNumber(item.percentOfTotal)}% of total reduction)
+          </div>
+        </div>
+      `).join('')
+    : '<div style="padding: 12px 14px; border: 1px dashed #0f766e40; border-radius: 8px; background-color: #ecfdf5; color: #0f766e; font-size: 12px;">Panel 4 conduct assumptions capture how tools deter future harm. Use them to reflect how suppliers behave between issues.</div>';
 
   container.innerHTML = `
     <div class="final-results-panel">
@@ -1317,9 +1436,9 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
         
         <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 16px; margin-bottom: 20px;">
           <p style="font-size: 14px; margin: 0; color: #1e40af; line-height: 1.5;">
-            <strong>Your use of HRDD tools transforms baseline risk to managed risk through four key steps:</strong> 
-            (1) which tools are used with what coverage of your supplier base, (2) how good those tools are at detecting issues, (3) how you respond to issues
-             that are detected, and (4) the effectiveness of those responses in ensuring sustained remedy and in deterring future issues.
+            <strong>Your use of HRDD tools transforms baseline risk to managed risk through four key steps:</strong>
+            (1) which tools are used with what coverage of your supplier base, (2) how reliably those tools detect issues,
+            (3) how effectively those tools enable sustained remedy once issues appear, and (4) how strongly they promote good conduct to prevent recurrence.
           </p>
         </div>
 
@@ -1358,18 +1477,37 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
           <!-- Arrow -->
           <div style="text-align: center; color: #6b7280;">
             <div style="font-size: 20px;">↓</div>
-            <div style="font-size: 12px;">Allocate Response Capacity</div>
+            <div style="font-size: 12px;">Apply Sustained Remedy Levers</div>
           </div>
 
-          <!-- Step 3: After Response -->
-          <div style="display: flex; align-items: center; padding: 16px; border-radius: 8px; background-color: #f3e8ff; border: 1px solid #8b5cf6;">
+          <!-- Step 3: After Sustained Remedy -->
+          <div style="display: flex; align-items: center; padding: 16px; border-radius: 8px; background-color: #f3e8ff; border:1px solid #8b5cf6;">
             <div style="width: 40px; height: 40px; border-radius: 50%; background-color: #8b5cf6; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 16px;">3</div>
             <div style="flex: 1;">
-              <div style="font-weight: 600; color: #7c3aed; margin-bottom: 4px;">Response Allocation Applied (${formatNumber(responsivenessValue * 100)}% response effectiveness)</div>
-              <div style="font-size: 24px; font-weight: bold; color: #7c3aed;">${formatNumber(riskAfterResponse)}</div>
+              <div style="font-weight: 600; color: #7c3aed; margin-bottom: 4px;">Sustained Remedy Applied (${formatNumber(sustainedRemedyValue * 100)}% effectiveness)</div>
+              <div style="font-size: 24px; font-weight: bold; color: #7c3aed;">${formatNumber(riskAfterRemedy)}</div>
               <div style="font-size: 12px; color: #6d28d9;">
-                Response levers ${responseStageVerb} ${formatNumber(responseStageAmount)} pts
-                (${formatNumber(responseStepPercent)}% of baseline • ${formatNumber(responseShareOfTotal)}% of total reduction)
+                Remedy tools ${remedyStageVerb} ${formatNumber(remedyStageAmount)} pts
+                (${formatNumber(remedyStepPercent)}% of baseline • ${formatNumber(remedyShareOfTotal)}% of total reduction)
+              </div>
+            </div>
+          </div>
+
+          <!-- Arrow -->
+          <div style="text-align: center; color: #6b7280;">
+            <div style="font-size: 20px;">↓</div>
+            <div style="font-size: 12px;">Promote Good Conduct</div>
+          </div>
+
+          <!-- Step 4: After Conduct Reinforcement -->
+          <div style="display: flex; align-items: center; padding: 16px; border-radius: 8px; background-color: #ecfdf5; border:1px solid #0f766e;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background-color: #0f766e; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 16px;">4</div>
+            <div style="flex: 1;">
+              <div style="font-weight: 600; color: #0f766e; margin-bottom: 4px;">Good Conduct Reinforced (${formatNumber(goodConductValue * 100)}% effectiveness)</div>
+              <div style="font-size: 24px; font-weight: bold; color: #0f766e;">${formatNumber(riskAfterConduct)}</div>
+              <div style="font-size: 12px; color: #0f766e;">
+                Behaviour change ${conductStageVerb} ${formatNumber(conductStageAmount)} pts
+                (${formatNumber(conductStepPercent)}% of baseline • ${formatNumber(conductShareOfTotal)}% of total reduction)
               </div>
             </div>
           </div>
@@ -1380,9 +1518,9 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
             <div style="font-size: 12px;">Apply Enhanced Focus & Concentration Effects</div>
           </div>
 
-           <!-- Step 4: Final Result -->
+           <!-- Step 5: Final Result -->
            <div style="display: flex; align-items: center; padding: 16px; border-radius: 8px; background-color: #d1fae5; border: 1px solid #22c55e;">
-            <div style="width: 40px; height: 40px; border-radius: 50%; background-color: #22c55e; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 16px;">4</div>
+            <div style="width: 40px; height: 40px; border-radius: 50%; background-color: #22c55e; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 16px;">5</div>
             <div style="flex: 1;">
               <div style="font-weight: 600; color: #16a34a; margin-bottom: 4px;">Final Enhanced Managed Risk (${focusPercent}% focus, ${concentrationFactor.toFixed(2)}× concentration)</div>
               <div style="font-size: 24px; font-weight: bold; color: #16a34a;">${formatNumber(finalManagedRisk)}</div>
@@ -1392,7 +1530,6 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
               </div>
             </div>
           </div>
-        </div>
 
         <!-- EFFECTIVENESS BREAKDOWN -->
         <div style="background-color: #f8fafc; padding: 16px; border-radius: 6px; border: 1px solid #e5e7eb;">
@@ -1406,7 +1543,7 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
             <div>
               <div style="font-size: 12px; font-weight: 500; color: #6b7280; margin-bottom: 4px;">COMBINED EFFECTIVENESS</div>
               <div style="font-size: 20px; font-weight: bold; color: #7c3aed;">${formatNumber(combinedEffectiveness * 100)}%</div>
-              <div style="font-size: 11px; color: #6b7280;">Transparency × Response</div>
+              <div style="font-size: 11px; color: #6b7280;">Detection × Behaviour</div>
             </div>
             <div>
               <div style="font-size: 12px; font-weight: 500; color: #6b7280; margin-bottom: 4px;">ENHANCED FOCUS MULTIPLIER</div>
@@ -1419,11 +1556,12 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
 
       <!-- DETAILED STRATEGY BREAKDOWN -->
       <div style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); margin-bottom: 24px;">
-        <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #374151;">How choice of tools and approach to remedy reduces risk</h3>
+        <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #374151;">How your tools manage risk after detection</h3>
         <p style="font-size: 13px; color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
           Your configuration ${totalReductionVerb} ${formatNumber(totalReductionAmount)} pts of risk from the baseline.
           Panel 3 detection coverage ${detectionStageVerb} ${formatNumber(detectionStageAmount)} pts (~${formatNumber(detectionShareOfTotal)}% of the total change),
-          while Panel 4 remedy approach ${responseStageVerb} ${formatNumber(responseStageAmount)} pts (~${formatNumber(responseShareOfTotal)}%).
+          Panel 4 sustained remedy assumptions ${remedyStageVerb} ${formatNumber(remedyStageAmount)} pts (~${formatNumber(remedyShareOfTotal)}%),
+          and Panel 4 conduct promotion ${conductStageVerb} ${formatNumber(conductStageAmount)} pts (~${formatNumber(conductShareOfTotal)}%).
           Your focus on higher risk countries reduced overall risk further by ${focusStageVerb} ${formatNumber(focusStageAmount)} pts by concentrating attention on them.
         </p>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px;">
@@ -1438,11 +1576,20 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
           </div>
           <div style="border: 1px solid #ddd6fe; background-color: #f5f3ff; padding: 16px; border-radius: 10px; display: flex; flex-direction: column; gap: 12px;">
             <div>
-              <div style="font-size: 14px; font-weight: 600; color: #5b21b6;">Panel 4 · Remedy approach</div>
-              <div style="font-size: 12px; color: #4c1d95;">${responseStageVerb.charAt(0).toUpperCase() + responseStageVerb.slice(1)} ${formatNumber(responseStageAmount)} pts (~${formatNumber(responseShareOfTotal)}% of total)</div>
+              <div style="font-size: 14px; font-weight: 600; color: #5b21b6;">Panel 4 · Sustained remedy</div>
+              <div style="font-size: 12px; color: #4c1d95;">${remedyStageVerb.charAt(0).toUpperCase() + remedyStageVerb.slice(1)} ${formatNumber(remedyStageAmount)} pts (~${formatNumber(remedyShareOfTotal)}% of total)</div>
             </div>
             <div style="display: flex; flex-direction: column; gap: 10px;">
-              ${responseBreakdownHtml}
+              ${remedyBreakdownHtml}
+            </div>
+          </div>
+          <div style="border: 1px solid #a7f3d0; background-color: #ecfdf5; padding: 16px; border-radius: 10px; display: flex; flex-direction: column; gap: 12px;">
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #047857;">Panel 4 · Promoting good conduct</div>
+              <div style="font-size: 12px; color: #047857;">${conductStageVerb.charAt(0).toUpperCase() + conductStageVerb.slice(1)} ${formatNumber(conductStageAmount)} pts (~${formatNumber(conductShareOfTotal)}% of total)</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              ${conductBreakdownHtml}
             </div>
           </div>
         </div>
@@ -3209,49 +3356,48 @@ function renderRiskTransformationComparison(optimization, budgetData, baselineRi
   `;
 }
 
-function calculateRiskTransformationSteps(baselineRisk, managedRisk, strategy, transparencyEffectiveness, responsivenessStrategy, responsivenessEffectiveness, focus) {
-  // Calculate transparency effectiveness
+function calculateRiskTransformationSteps(baselineRisk, managedRisk, strategy, transparencyEffectiveness, sustainedRemedyScores, conductScores, focus) {
   const overallTransparency = riskEngine.calculateOriginalTransparencyEffectiveness(strategy, transparencyEffectiveness);
-  
-  // Calculate responsiveness effectiveness
-  const overallResponsiveness = riskEngine.calculateResponsivenessEffectiveness(responsivenessStrategy, responsivenessEffectiveness);
-  
-  // Calculate focus multiplier (simplified portfolio version)
-  const focusMultiplier = riskEngine.calculatePortfolioFocusMultiplier(focus, 1.2); // Assume some concentration
-  
-  // Calculate intermediate steps
-  const totalReduction = baselineRisk - managedRisk;
-  const baseReduction = focusMultiplier > 0 ? totalReduction / focusMultiplier : 0;
-  const focusStageReduction = totalReduction - baseReduction;
-  
-  const detectionWeight = (overallTransparency + overallResponsiveness) > 0 
-    ? overallTransparency / (overallTransparency + overallResponsiveness) 
-    : 0.5;
-  
-  const detectionStageReduction = baseReduction * detectionWeight;
-  const responseStageReduction = baseReduction - detectionStageReduction;
-  
-  const riskAfterDetection = baselineRisk - detectionStageReduction;
-  const riskAfterResponse = riskAfterDetection - responseStageReduction;
-  
+  const sustainedRemedyOutcome = riskEngine.calculateSustainedRemedyEffectiveness(strategy, sustainedRemedyScores);
+  const conductOutcome = riskEngine.calculateGoodConductEffectiveness(strategy, conductScores);
+
+  const focusMultiplier = riskEngine.calculatePortfolioFocusMultiplier(focus, 1.2);
+  const stageBreakdown = riskEngine.calculateStageBreakdown(
+    baselineRisk,
+    managedRisk,
+    overallTransparency,
+    sustainedRemedyOutcome.overall,
+    conductOutcome.overall,
+    focusMultiplier
+  );
+
+  const remedyValue = sustainedRemedyOutcome.overall || 0;
+  const conductValue = conductOutcome.overall || 0;
+  const displayFocusMultiplier = Number.isFinite(stageBreakdown.focusMultiplier)
+    ? stageBreakdown.focusMultiplier
+    : focusMultiplier;
+
   return {
-    baseline: baselineRisk,
-    afterDetection: riskAfterDetection,
-    afterResponse: riskAfterResponse,
-    final: managedRisk,
-    detectionReduction: detectionStageReduction,
-    responseReduction: responseStageReduction,
-    focusReduction: focusStageReduction,
+    baseline: stageBreakdown.baseline,
+    afterDetection: stageBreakdown.afterDetection,
+    afterRemedy: stageBreakdown.afterRemedy,
+    afterConduct: stageBreakdown.afterConduct,
+    final: stageBreakdown.final,
+    detectionReduction: stageBreakdown.detection?.reduction || 0,
+    remedyReduction: stageBreakdown.sustainedRemedy?.reduction || 0,
+    conductReduction: stageBreakdown.conduct?.reduction || 0,
+    focusReduction: stageBreakdown.focus?.reduction || 0,
     transparencyPct: (overallTransparency * 100).toFixed(0),
-    responsivenessPct: (overallResponsiveness * 100).toFixed(0),
-    focusMultiplier: focusMultiplier.toFixed(2)
+    sustainedRemedyPct: (remedyValue * 100).toFixed(0),
+    conductPct: (conductValue * 100).toFixed(0),
+    focusMultiplier: displayFocusMultiplier.toFixed(2)
   };
 }
 
 function renderTransformationSteps(transformation, primaryColor, lightColor) {
   return `
     <div style="display: flex; flex-direction: column; gap: 12px;">
-      
+
       <!-- Step 1: Starting Point -->
       <div style="display: flex; align-items: center; padding: 12px; border-radius: 8px; background-color: white; border: 1px solid ${lightColor};">
         <div style="width: 28px; height: 28px; border-radius: 50%; background-color: ${primaryColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; font-size: 12px;">1</div>
@@ -3280,16 +3426,32 @@ function renderTransformationSteps(transformation, primaryColor, lightColor) {
       <!-- Arrow -->
       <div style="text-align: center; color: #6b7280;">
         <div style="font-size: 16px;">↓</div>
-        <div style="font-size: 10px;">Response (${transformation.responsivenessPct}%)</div>
+        <div style="font-size: 10px;">Sustained Remedy (${transformation.sustainedRemedyPct}%)</div>
       </div>
 
-      <!-- Step 3: After Response -->
+      <!-- Step 3: After Sustained Remedy -->
       <div style="display: flex; align-items: center; padding: 12px; border-radius: 8px; background-color: white; border: 1px solid ${lightColor};">
         <div style="width: 28px; height: 28px; border-radius: 50%; background-color: ${primaryColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; font-size: 12px;">3</div>
         <div style="flex: 1;">
-          <div style="font-size: 12px; font-weight: 600; color: ${primaryColor}; margin-bottom: 2px;">After Response</div>
-          <div style="font-size: 18px; font-weight: bold; color: ${primaryColor};">${transformation.afterResponse.toFixed(1)}</div>
-          <div style="font-size: 10px; color: ${primaryColor};">-${Math.abs(transformation.responseReduction).toFixed(1)} pts</div>
+          <div style="font-size: 12px; font-weight: 600; color: ${primaryColor}; margin-bottom: 2px;">After Sustained Remedy</div>
+          <div style="font-size: 18px; font-weight: bold; color: ${primaryColor};">${transformation.afterRemedy.toFixed(1)}</div>
+          <div style="font-size: 10px; color: ${primaryColor};">-${Math.abs(transformation.remedyReduction).toFixed(1)} pts</div>
+        </div>
+      </div>
+
+      <!-- Arrow -->
+      <div style="text-align: center; color: #6b7280;">
+        <div style="font-size: 16px;">↓</div>
+        <div style="font-size: 10px;">Good Conduct (${transformation.conductPct}%)</div>
+      </div>
+
+      <!-- Step 4: After Conduct Reinforcement -->
+      <div style="display: flex; align-items: center; padding: 12px; border-radius: 8px; background-color: white; border: 1px solid ${lightColor};">
+        <div style="width: 28px; height: 28px; border-radius: 50%; background-color: ${primaryColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; font-size: 12px;">4</div>
+        <div style="flex: 1;">
+          <div style="font-size: 12px; font-weight: 600; color: ${primaryColor}; margin-bottom: 2px;">After Conduct Reinforcement</div>
+          <div style="font-size: 18px; font-weight: bold; color: ${primaryColor};">${transformation.afterConduct.toFixed(1)}</div>
+          <div style="font-size: 10px; color: ${primaryColor};">-${Math.abs(transformation.conductReduction).toFixed(1)} pts</div>
         </div>
       </div>
 
@@ -3299,9 +3461,9 @@ function renderTransformationSteps(transformation, primaryColor, lightColor) {
         <div style="font-size: 10px;">Focus (${transformation.focusMultiplier}×)</div>
       </div>
 
-      <!-- Step 4: Final Result -->
+      <!-- Step 5: Final Result -->
       <div style="display: flex; align-items: center; padding: 12px; border-radius: 8px; background-color: white; border: 2px solid ${primaryColor};">
-        <div style="width: 28px; height: 28px; border-radius: 50%; background-color: ${primaryColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; font-size: 12px;">4</div>
+        <div style="width: 28px; height: 28px; border-radius: 50%; background-color: ${primaryColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; font-size: 12px;">5</div>
         <div style="flex: 1;">
           <div style="font-size: 12px; font-weight: 600; color: ${primaryColor}; margin-bottom: 2px;">Final Managed Risk</div>
           <div style="font-size: 18px; font-weight: bold; color: ${primaryColor};">${transformation.final.toFixed(1)}</div>

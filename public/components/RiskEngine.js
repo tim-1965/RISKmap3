@@ -8,9 +8,9 @@ export class RiskEngine {
     this.defaultHRDDStrategy = [10, 10, 25, 60, 80, 90]; // Coverage percentages: Worker voice is rare, trusting approaches are common
     this.defaultTransparencyEffectiveness = [90, 45, 25, 15, 12, 5]; // Base effectiveness rates
 
-    // Step 3: Responsiveness Strategy defaults
-    this.defaultResponsivenessStrategy = [35, 5, 20, 20, 10, 5]; // Portfolio of response levers from weakest to strongest
-    this.defaultResponsivenessEffectiveness = [75, 80, 35, 25, 15, 5]; // Mid-point response effectiveness assumptions in percentages
+     // Step 3: Effectiveness defaults for sustained remedy and good conduct
+    this.defaultResponsivenessStrategy = [35, 5, 20, 20, 10, 5]; // Effectiveness of each tool at delivering sustained remedy
+    this.defaultResponsivenessEffectiveness = [75, 80, 35, 25, 15, 5]; // Effectiveness of each tool at promoting good conduct in percentages
 
     // Focus defaults for directing transparency/response capacity to higher-risk countries
     this.defaultFocus = 0.6;
@@ -447,8 +447,31 @@ export class RiskEngine {
       safeSelected, countryVolumes, countryRisks, hrddStrategy, sanitizedFocus
     );
 
-    // Calculate overall responsiveness effectiveness
-    const overallResponsivenessEffectiveness = this.calculateResponsivenessEffectiveness(responsivenessStrategy, responsivenessEffectiveness);
+     // Calculate sustained remedy and good conduct effectiveness
+    const sustainedRemedyOutcome = this.calculateSustainedRemedyEffectiveness(
+      hrddStrategy,
+      responsivenessStrategy,
+      {
+        selectedCountries: safeSelected,
+        countryVolumes,
+        countrySpecificCoverage
+      }
+    );
+
+    const goodConductOutcome = this.calculateGoodConductEffectiveness(
+      hrddStrategy,
+      responsivenessEffectiveness,
+      {
+        selectedCountries: safeSelected,
+        countryVolumes,
+        countrySpecificCoverage
+      }
+    );
+
+    const combinedBehaviourEffectiveness = this.combineBehaviourEffectiveness(
+      sustainedRemedyOutcome.overall,
+      goodConductOutcome.overall
+    );
 
     // MODIFIED: Calculate country-specific managed risks with rank preservation
     const managedRisksByCountry = {};
@@ -479,7 +502,7 @@ export class RiskEngine {
       );
       
       // Calculate base reduction factor
-      const baseReductionFactor = countryTransparency * overallResponsivenessEffectiveness * countryFocusMultiplier;
+      const baseReductionFactor = countryTransparency * combinedBehaviourEffectiveness * countryFocusMultiplier;
       
       // NEW: Apply progressive effectiveness cap to preserve ranking
       const effectivenessCap = this.calculateProgressiveEffectivenessCap(countryRisk);
@@ -544,7 +567,16 @@ export class RiskEngine {
       hrddStrategy, transparencyEffectiveness, safeSelected, countryVolumes, countryRisks, sanitizedFocus
     );
     
-    const combinedEffectiveness = overallTransparencyEffectiveness * overallResponsivenessEffectiveness;
+    const combinedEffectiveness = overallTransparencyEffectiveness * combinedBehaviourEffectiveness;
+
+    const stageBreakdown = this.calculateStageBreakdown(
+      baselineRisk,
+      finalManagedRisk,
+      overallTransparencyEffectiveness,
+      sustainedRemedyOutcome.overall,
+      goodConductOutcome.overall,
+      portfolioFocusMultiplier
+    );
 
     // Calculate focus effectiveness metrics
     const focusEffectivenessMetrics = this.calculateFocusEffectivenessMetrics(
@@ -557,11 +589,17 @@ export class RiskEngine {
       riskConcentration: sanitizedConcentration,
       portfolioFocusMultiplier,
       combinedEffectiveness,
+      sustainedRemedyEffectiveness: sustainedRemedyOutcome.overall,
+      goodConductEffectiveness: goodConductOutcome.overall,
+      sustainedRemedyDetails: sustainedRemedyOutcome.details,
+      goodConductDetails: goodConductOutcome.details,
       countryManagedRisks: managedRisksByCountry,
       countrySpecificCoverage,
-      focusEffectivenessMetrics
+      focusEffectivenessMetrics,
+      stageBreakdown
     };
   }
+
 
   // Rest of the existing methods remain the same...
   getFocusWeight() {
@@ -935,26 +973,244 @@ export class RiskEngine {
     return Math.min(combinedTransparency, maxTransparency);
   }
 
-  // Step 3: Calculate overall responsiveness effectiveness
-  calculateResponsivenessEffectiveness(responsivenessStrategy, responsivenessEffectiveness) {
-    if (!this.validateResponsiveness(responsivenessStrategy) || !this.validateResponsivenessEffectiveness(responsivenessEffectiveness)) {
+  // Step 3: Calculate outcome effectiveness for a set of tools (sustained remedy or good conduct)
+  calculateToolOutcomeEffectiveness(
+    hrddStrategy,
+    outcomeEffectiveness,
+    selectedCountries = null,
+    countryVolumes = null,
+    countrySpecificCoverage = null
+  ) {
+    const toolLabels = Array.isArray(this.hrddStrategyLabels) ? this.hrddStrategyLabels : [];
+    const safeStrategy = Array.isArray(hrddStrategy) ? hrddStrategy : [];
+    const safeEffectiveness = Array.isArray(outcomeEffectiveness) ? outcomeEffectiveness : [];
+    const toolCount = Math.max(toolLabels.length, safeStrategy.length, safeEffectiveness.length);
+
+    if (toolCount === 0) {
+      return {
+        overall: 0,
+        totalCoverageWeight: 0,
+        totalWeightedEffect: 0,
+        details: []
+      };
+    }
+
+    const sanitizedSelected = Array.isArray(selectedCountries)
+      ? selectedCountries.filter(code => typeof code === 'string' && code.length > 0)
+      : [];
+
+    const coverageFractions = new Array(toolCount).fill(0);
+    const coverageAverages = new Array(toolCount).fill(0);
+
+    if (sanitizedSelected.length > 0 && countryVolumes && countrySpecificCoverage) {
+      let totalVolume = 0;
+
+      sanitizedSelected.forEach(countryCode => {
+        const volume = Number.isFinite(countryVolumes?.[countryCode]) ? Math.max(0, countryVolumes[countryCode]) : 0;
+        totalVolume += volume;
+      });
+
+      const effectiveTotalVolume = totalVolume > 0 ? totalVolume : 0;
+
+      for (let i = 0; i < toolCount; i += 1) {
+        let weightedCoverageSum = 0;
+
+        sanitizedSelected.forEach(countryCode => {
+          const volume = Number.isFinite(countryVolumes?.[countryCode]) ? Math.max(0, countryVolumes[countryCode]) : 0;
+          if (volume <= 0) return;
+
+          const fallbackCoverage = Number.isFinite(safeStrategy[i]) ? Math.max(0, safeStrategy[i]) : 0;
+          const countryCoverage = Number.isFinite(countrySpecificCoverage?.[countryCode]?.[i])
+            ? Math.max(0, countrySpecificCoverage[countryCode][i])
+            : fallbackCoverage;
+
+          weightedCoverageSum += volume * Math.max(0, Math.min(100, countryCoverage));
+        });
+
+        if (effectiveTotalVolume > 0) {
+          const averageCoverage = weightedCoverageSum / effectiveTotalVolume;
+          coverageAverages[i] = Math.max(0, Math.min(100, averageCoverage));
+          coverageFractions[i] = Math.max(0, coverageAverages[i] / 100);
+        } else {
+          const baseCoverage = Number.isFinite(safeStrategy[i]) ? Math.max(0, Math.min(100, safeStrategy[i])) : 0;
+          coverageAverages[i] = baseCoverage;
+          coverageFractions[i] = baseCoverage / 100;
+        }
+      }
+    } else {
+      for (let i = 0; i < toolCount; i += 1) {
+        const baseCoverage = Number.isFinite(safeStrategy[i]) ? Math.max(0, Math.min(100, safeStrategy[i])) : 0;
+        coverageAverages[i] = baseCoverage;
+        coverageFractions[i] = baseCoverage / 100;
+      }
+    }
+
+    let totalCoverageWeight = 0;
+    let totalWeightedEffect = 0;
+
+    const details = new Array(toolCount).fill(null).map((_, index) => {
+      const label = toolLabels[index] || `Tool ${index + 1}`;
+      const coveragePercent = coverageAverages[index] || 0;
+      const coverageFraction = Math.max(0, coverageFractions[index] || 0);
+      const effectivenessValue = Number.isFinite(safeEffectiveness[index])
+        ? Math.max(0, Math.min(100, safeEffectiveness[index]))
+        : 0;
+      const effectivenessFraction = effectivenessValue / 100;
+      const weightedEffect = coverageFraction * effectivenessFraction;
+
+      totalCoverageWeight += coverageFraction;
+      totalWeightedEffect += weightedEffect;
+
+      return {
+        index,
+        name: label,
+        coverage: coveragePercent,
+        effectiveness: effectivenessValue,
+        coverageFraction,
+        weightedEffect
+      };
+    });
+
+    const overall = totalCoverageWeight > 0
+      ? totalWeightedEffect / totalCoverageWeight
+      : 0;
+
+    return {
+      overall,
+      totalCoverageWeight,
+      totalWeightedEffect,
+      details
+    };
+  }
+
+  calculateSustainedRemedyEffectiveness(
+    hrddStrategy,
+    sustainedRemedyEffectiveness,
+    {
+      selectedCountries = null,
+      countryVolumes = null,
+      countrySpecificCoverage = null
+    } = {}
+  ) {
+    return this.calculateToolOutcomeEffectiveness(
+      hrddStrategy,
+      sustainedRemedyEffectiveness,
+      selectedCountries,
+      countryVolumes,
+      countrySpecificCoverage
+    );
+  }
+
+  calculateGoodConductEffectiveness(
+    hrddStrategy,
+    conductEffectiveness,
+    {
+      selectedCountries = null,
+      countryVolumes = null,
+      countrySpecificCoverage = null
+    } = {}
+  ) {
+    return this.calculateToolOutcomeEffectiveness(
+      hrddStrategy,
+      conductEffectiveness,
+      selectedCountries,
+      countryVolumes,
+      countrySpecificCoverage
+    );
+  }
+
+  combineBehaviourEffectiveness(sustainedRemedy, goodConduct) {
+    const remedyValue = Number.isFinite(sustainedRemedy) ? Math.max(0, Math.min(1, sustainedRemedy)) : 0;
+    const conductValue = Number.isFinite(goodConduct) ? Math.max(0, Math.min(1, goodConduct)) : 0;
+
+    if (remedyValue === 0 && conductValue === 0) {
       return 0;
     }
 
-    let weightedEffectiveness = 0;
-    let totalWeight = 0;
+    return (remedyValue + conductValue) / 2;
+  }
 
-    const length = Math.min(responsivenessStrategy.length, responsivenessEffectiveness.length);
+  calculateStageBreakdown(
+    baselineRisk,
+    managedRisk,
+    overallTransparency,
+    sustainedRemedyEffectiveness,
+    goodConductEffectiveness,
+    focusMultiplier
+  ) {
+    const baselineValue = Number.isFinite(baselineRisk) ? baselineRisk : 0;
+    const managedValue = Number.isFinite(managedRisk) ? managedRisk : 0;
+    const transparencyValue = Number.isFinite(overallTransparency)
+      ? Math.max(0, Math.min(1, overallTransparency))
+      : 0;
+    const remedyValue = Number.isFinite(sustainedRemedyEffectiveness)
+      ? Math.max(0, Math.min(1, sustainedRemedyEffectiveness))
+      : 0;
+    const conductValue = Number.isFinite(goodConductEffectiveness)
+      ? Math.max(0, Math.min(1, goodConductEffectiveness))
+      : 0;
+    const sanitizedFocusMultiplier = Number.isFinite(focusMultiplier) && focusMultiplier > 0
+      ? focusMultiplier
+      : 1;
 
-    for (let i = 0; i < length; i++) {
-      const strategyWeight = Math.max(0, responsivenessStrategy[i]);
-      const effectiveness = (responsivenessEffectiveness[i] || 0) / 100;
+    const totalReduction = baselineValue - managedValue;
+    const baseReduction = sanitizedFocusMultiplier !== 0
+      ? totalReduction / sanitizedFocusMultiplier
+      : 0;
+    const focusStageReduction = totalReduction - baseReduction;
 
-      weightedEffectiveness += strategyWeight * effectiveness;
-      totalWeight += strategyWeight;
-    }
+    const stageWeightSum = transparencyValue + remedyValue + conductValue;
+    const detectionWeight = stageWeightSum > 0 ? transparencyValue / stageWeightSum : 1 / 3;
+    const remedyWeight = stageWeightSum > 0 ? remedyValue / stageWeightSum : 1 / 3;
+    const conductWeight = stageWeightSum > 0 ? conductValue / stageWeightSum : 1 / 3;
 
-    return totalWeight > 0 ? weightedEffectiveness / totalWeight : 0;
+    const detectionStageReduction = baseReduction * detectionWeight;
+    const remedyStageReduction = baseReduction * remedyWeight;
+    const conductStageReduction = baseReduction - detectionStageReduction - remedyStageReduction;
+
+    const riskAfterDetection = baselineValue - detectionStageReduction;
+    const riskAfterRemedy = riskAfterDetection - remedyStageReduction;
+    const riskAfterConduct = riskAfterRemedy - conductStageReduction;
+
+    const getPercentOfBaseline = (value) => baselineValue > 0 ? value / baselineValue : 0;
+    const getShareOfTotal = (value) => totalReduction !== 0 ? value / totalReduction : 0;
+
+    return {
+      baseline: baselineValue,
+      final: managedValue,
+      afterDetection: riskAfterDetection,
+      afterRemedy: riskAfterRemedy,
+      afterConduct: riskAfterConduct,
+      totalReduction,
+      baseReduction,
+      focusReduction: focusStageReduction,
+      focusMultiplier: sanitizedFocusMultiplier,
+      weights: {
+        detection: detectionWeight,
+        sustainedRemedy: remedyWeight,
+        conduct: conductWeight
+      },
+      detection: {
+        reduction: detectionStageReduction,
+        percentOfBaseline: getPercentOfBaseline(detectionStageReduction),
+        shareOfTotal: getShareOfTotal(detectionStageReduction)
+      },
+      sustainedRemedy: {
+        reduction: remedyStageReduction,
+        percentOfBaseline: getPercentOfBaseline(remedyStageReduction),
+        shareOfTotal: getShareOfTotal(remedyStageReduction)
+      },
+      conduct: {
+        reduction: conductStageReduction,
+        percentOfBaseline: getPercentOfBaseline(conductStageReduction),
+        shareOfTotal: getShareOfTotal(conductStageReduction)
+      },
+      focus: {
+        reduction: focusStageReduction,
+        percentOfBaseline: getPercentOfBaseline(focusStageReduction),
+        shareOfTotal: getShareOfTotal(focusStageReduction)
+      }
+    };
   }
 
   // Main managed risk calculation method using new approach
@@ -990,9 +1246,14 @@ export class RiskEngine {
       return 0;
     }
 
-    const overallTransparencyEffectiveness = this.calculateOriginalTransparencyEffectiveness(hrddStrategy, transparencyEffectiveness);
-    const overallResponsivenessEffectiveness = this.calculateResponsivenessEffectiveness(responsivenessStrategy, responsivenessEffectiveness);
-    const combinedEffectiveness = overallTransparencyEffectiveness * overallResponsivenessEffectiveness;
+     const overallTransparencyEffectiveness = this.calculateOriginalTransparencyEffectiveness(hrddStrategy, transparencyEffectiveness);
+    const sustainedRemedyOutcome = this.calculateSustainedRemedyEffectiveness(hrddStrategy, responsivenessStrategy);
+    const goodConductOutcome = this.calculateGoodConductEffectiveness(hrddStrategy, responsivenessEffectiveness);
+    const combinedBehaviourEffectiveness = this.combineBehaviourEffectiveness(
+      sustainedRemedyOutcome.overall,
+      goodConductOutcome.overall
+    );
+    const combinedEffectiveness = overallTransparencyEffectiveness * combinedBehaviourEffectiveness;
 
     const sanitizedFocus = Number.isFinite(focus) ? Math.max(0, Math.min(1, focus)) : 0;
     const sanitizedConcentration = Number.isFinite(riskConcentration) && riskConcentration > 0
@@ -1187,6 +1448,31 @@ export class RiskEngine {
       ? this.calculateCountrySpecificCoverage(safeSelectedCountries, countryVolumes, countryRisks, normalizedStrategy, sanitizedFocus)
       : null;
 
+    const sustainedRemedyOutcome = this.calculateSustainedRemedyEffectiveness(
+      normalizedStrategy,
+      responsivenessStrategy,
+      {
+        selectedCountries: safeSelectedCountries,
+        countryVolumes,
+        countrySpecificCoverage
+      }
+    );
+
+    const goodConductOutcome = this.calculateGoodConductEffectiveness(
+      normalizedStrategy,
+      responsivenessEffectiveness,
+      {
+        selectedCountries: safeSelectedCountries,
+        countryVolumes,
+        countrySpecificCoverage
+      }
+    );
+
+    const combinedBehaviourEffectiveness = this.combineBehaviourEffectiveness(
+      sustainedRemedyOutcome.overall,
+      goodConductOutcome.overall
+    );
+
     const toolCategories = [
       {
         name: 'Worker Voice',
@@ -1211,8 +1497,16 @@ export class RiskEngine {
     const breakdown = {
       hrddStrategies: [],
       overallTransparency: overallTransparency,
-      overallResponsiveness: this.calculateResponsivenessEffectiveness(responsivenessStrategy, responsivenessEffectiveness),
-      primaryResponse: this.getPrimaryResponseMethod(responsivenessStrategy, responsivenessEffectiveness),
+      overallResponsiveness: combinedBehaviourEffectiveness,
+      overallSustainedRemedy: sustainedRemedyOutcome.overall,
+      overallGoodConduct: goodConductOutcome.overall,
+      sustainedRemedyDetails: sustainedRemedyOutcome.details,
+      goodConductDetails: goodConductOutcome.details,
+      sustainedRemedyCoverageWeight: sustainedRemedyOutcome.totalCoverageWeight,
+      goodConductCoverageWeight: goodConductOutcome.totalCoverageWeight,
+      sustainedRemedyContribution: sustainedRemedyOutcome.totalWeightedEffect,
+      goodConductContribution: goodConductOutcome.totalWeightedEffect,
+      primaryResponse: this.getPrimaryResponseMethod(sustainedRemedyOutcome.details),
       focus: {
         level: sanitizedFocus,
         concentration: sanitizedConcentration,
@@ -1264,63 +1558,19 @@ export class RiskEngine {
     return breakdown;
   }
 
-   getPrimaryResponseMethod(responsivenessStrategy, responsivenessEffectiveness) {
-    const fallbackStrategy = Array.isArray(this.defaultResponsivenessStrategy)
-      ? this.defaultResponsivenessStrategy
-      : [];
-    const safeStrategy = Array.isArray(responsivenessStrategy) && responsivenessStrategy.length > 0
-      ? responsivenessStrategy
-      : fallbackStrategy;
-
-    const fallbackEffectiveness = Array.isArray(this.defaultResponsivenessEffectiveness)
-      ? this.defaultResponsivenessEffectiveness
-      : [];
-    const safeEffectiveness = Array.isArray(responsivenessEffectiveness) && responsivenessEffectiveness.length > 0
-      ? responsivenessEffectiveness
-      : fallbackEffectiveness;
-
-    if (!Array.isArray(safeStrategy) || safeStrategy.length === 0) {
-      const defaultLabel = Array.isArray(this.responsivenessLabels) && this.responsivenessLabels.length > 0
-        ? this.responsivenessLabels[0]
-        : 'Not specified';
-      const defaultEffectiveness = Number.isFinite(safeEffectiveness[0]) ? safeEffectiveness[0] : 0;
-
-      return {
-        method: defaultLabel,
-        weight: 0,
-        effectiveness: defaultEffectiveness
-      };
+  getPrimaryResponseMethod(remedyDetails) {
+    if (!Array.isArray(remedyDetails) || remedyDetails.length === 0) {
+      return null;
     }
 
-    let maxWeight = -Infinity;
-    let primaryIndex = 0;
-
-    for (let i = 0; i < safeStrategy.length; i += 1) {
-      const weight = Number.isFinite(safeStrategy[i]) ? safeStrategy[i] : 0;
-      if (weight > maxWeight) {
-        maxWeight = weight;
-        primaryIndex = i;
-      }
-    }
-
-    if (!Number.isFinite(maxWeight) || maxWeight < 0) {
-      maxWeight = 0;
-      primaryIndex = 0;
-    }
-
-    const labelIndex = Array.isArray(this.responsivenessLabels) && this.responsivenessLabels.length > 0
-      ? Math.min(primaryIndex, this.responsivenessLabels.length - 1)
-      : 0;
-    const effectivenessIndex = safeEffectiveness.length > 0
-      ? Math.min(primaryIndex, safeEffectiveness.length - 1)
-      : 0;
+    const sorted = [...remedyDetails].sort((a, b) => (b?.weightedEffect || 0) - (a?.weightedEffect || 0));
+    const top = sorted[0];
 
     return {
-      method: this.responsivenessLabels?.[labelIndex] || 'Not specified',
-      weight: Math.max(0, Number.isFinite(maxWeight) ? maxWeight : 0),
-      effectiveness: Number.isFinite(safeEffectiveness?.[effectivenessIndex])
-        ? safeEffectiveness[effectivenessIndex]
-        : 0
+      method: top?.name || 'Not specified',
+      coverage: Number.isFinite(top?.coverage) ? top.coverage : 0,
+      effectiveness: Number.isFinite(top?.effectiveness) ? top.effectiveness : 0,
+      contribution: Number.isFinite(top?.weightedEffect) ? top.weightedEffect : 0
     };
   }
 
@@ -1366,6 +1616,15 @@ export class RiskEngine {
         countryRisks
       );
 
+      const stageBreakdown = details.stageBreakdown || this.calculateStageBreakdown(
+        details.baselineRisk,
+        details.managedRisk,
+        breakdown.overallTransparency,
+        breakdown.overallSustainedRemedy,
+        breakdown.overallGoodConduct,
+        details.portfolioFocusMultiplier
+      );
+
       return {
         baseline: {
           score: details.baselineRisk,
@@ -1387,7 +1646,7 @@ export class RiskEngine {
           averageRisk: details.baselineRisk,
           riskConcentration: details.riskConcentration
         },
-        strategy: breakdown,
+        strategy: { ...breakdown, stageBreakdown },
         focusEffectiveness: details.focusEffectivenessMetrics,
         countryManagedRisks: details.countryManagedRisks
       };
@@ -1402,6 +1661,15 @@ export class RiskEngine {
       responsivenessEffectiveness,
       focus,
       riskConcentration
+    );
+
+    const stageBreakdown = this.calculateStageBreakdown(
+      baselineRisk,
+      managedRisk,
+      breakdown.overallTransparency,
+      breakdown.overallSustainedRemedy,
+      breakdown.overallGoodConduct,
+      breakdown?.focus?.portfolioMultiplier
     );
 
     return {
@@ -1425,7 +1693,7 @@ export class RiskEngine {
         averageRisk: baselineRisk,
         riskConcentration
       },
-      strategy: breakdown
+      strategy: { ...breakdown, stageBreakdown }
     };
   }
 
