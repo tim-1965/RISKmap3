@@ -1764,8 +1764,8 @@ getDefaultCostAssumptions() {
     toolPerSupplierCosts: [120, 250, 1200, 0, 10, 10],     // Variable per-supplier costs  
     toolInternalHours: [3, 6, 20, 4, 2, 1],        // Internal hours per supplier per tool
     
-    // Panel 4 Response Method Costs (6 methods)
-    responseInternalHours: [2, 6, 12, 3, 2, 1],    // Internal hours per supplier per response method
+    // Panel 4 Remedy utilisation costs (per tool)
+    toolRemedyInternalHours: [0, 10, 10, 6, 2, 2],    // Internal hours per supplier to apply each tool's findings
     
     // General defaults
     defaultSupplierCount: 250,
@@ -1779,7 +1779,7 @@ getDefaultCostAssumptions() {
     toolAnnualProgrammeCosts,
     toolPerSupplierCosts,
     toolInternalHours,
-    responseInternalHours,
+    toolRemedyInternalHours,
     hrddStrategy,
     transparencyEffectiveness,
     responsivenessStrategy,
@@ -1795,17 +1795,12 @@ getDefaultCostAssumptions() {
     return null;
   }
 
-  const defaults = this.getDefaultCostAssumptions();
- const safeSupplierCount = Math.max(1, Math.floor(supplierCount || 1));
+    const safeSupplierCount = Math.max(1, Math.floor(supplierCount || 1));
     const safeHourlyRate = Math.max(0, Number.isFinite(hourlyRate) ? hourlyRate : 20);
 
     const toolCount = Array.isArray(this.hrddStrategyLabels)
       ? this.hrddStrategyLabels.length
       : 6;
-    const responseCount = Array.isArray(this.responsivenessLabels)
-      ? this.responsivenessLabels.length
-      : 6;
-
     const safeAnnualProgrammeCosts = Array.from({ length: toolCount }, (_, index) => {
       const value = Array.isArray(toolAnnualProgrammeCosts)
         ? toolAnnualProgrammeCosts[index]
@@ -1827,24 +1822,15 @@ getDefaultCostAssumptions() {
       return Number.isFinite(value) ? Math.max(0, value) : 0;
     });
 
-    const safeResponseInternalHours = Array.from({ length: responseCount }, (_, index) => {
-      const value = Array.isArray(responseInternalHours)
-        ? responseInternalHours[index]
+    const safeToolRemedyInternalHours = Array.from({ length: toolCount }, (_, index) => {
+      const value = Array.isArray(toolRemedyInternalHours)
+        ? toolRemedyInternalHours[index]
         : undefined;
       return Number.isFinite(value) ? Math.max(0, value) : 0;
     });
 
     const safeHrddStrategy = Array.from({ length: toolCount }, (_, index) => {
       const value = Array.isArray(hrddStrategy) ? hrddStrategy[index] : undefined;
-      return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
-    });
-
-    const safeResponsivenessStrategy = Array.from({ length: responseCount }, (_, index) => {
-      const value = Array.isArray(responsivenessStrategy)
-        ? responsivenessStrategy[index]
-        : Array.isArray(this.defaultResponsivenessStrategy)
-          ? this.defaultResponsivenessStrategy[index]
-          : 0;
       return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
     });
 
@@ -1857,9 +1843,12 @@ getDefaultCostAssumptions() {
       const annualProgrammeCost = annualProgrammeBase * coverageRatio;
       const perSupplierCost = safePerSupplierCosts[index] || 0;
       const hoursPerSupplier = safeToolInternalHours[index] || 0;
+      const remedyHoursPerSupplier = safeToolRemedyInternalHours[index] || 0;
 
       const totalExternalCost = annualProgrammeCost + (suppliersUsingTool * perSupplierCost);
-      const totalInternalCost = suppliersUsingTool * hoursPerSupplier * safeHourlyRate;
+      const detectionInternalCost = suppliersUsingTool * hoursPerSupplier * safeHourlyRate;
+      const remedyInternalCost = suppliersUsingTool * remedyHoursPerSupplier * safeHourlyRate;
+      const totalInternalCost = detectionInternalCost + remedyInternalCost;
       const totalCost = totalExternalCost + totalInternalCost;
 
       return {
@@ -1876,35 +1865,19 @@ getDefaultCostAssumptions() {
           ? totalExternalCost / suppliersUsingTool
           : perSupplierCost,
         hoursPerSupplier,
+        remedyHoursPerSupplier,
         totalExternalCost,
+        detectionInternalCost,
+        remedyInternalCost,
         totalInternalCost,
         totalCost
       };
     });
 
-    const responseDeployments = safeResponsivenessStrategy.map((coverage, index) => {
-      const coverageRatio = Math.max(0, Math.min(1, coverage / 100));
-      const suppliersUsingMethod = Math.ceil(safeSupplierCount * coverageRatio);
-      const hoursPerSupplier = safeResponseInternalHours[index] || 0;
-
-      const totalInternalCost = suppliersUsingMethod * hoursPerSupplier * safeHourlyRate;
-
-      return {
-        responseIndex: index,
-        responseName: Array.isArray(this.responsivenessLabels)
-          ? this.responsivenessLabels[index]
-          : `Response ${index + 1}`,
-        coverage,
-        suppliersUsingMethod,
-        hoursPerSupplier,
-        totalInternalCost
-      };
-    });
-
     const totalExternalCost = toolDeployments.reduce((sum, tool) => sum + tool.totalExternalCost, 0);
-    const totalToolInternalCost = toolDeployments.reduce((sum, tool) => sum + tool.totalInternalCost, 0);
-    const totalResponseInternalCost = responseDeployments.reduce((sum, response) => sum + response.totalInternalCost, 0);
-    const totalInternalCost = totalToolInternalCost + totalResponseInternalCost;
+    const totalDetectionInternalCost = toolDeployments.reduce((sum, tool) => sum + tool.detectionInternalCost, 0);
+    const totalRemedyInternalCost = toolDeployments.reduce((sum, tool) => sum + tool.remedyInternalCost, 0);
+    const totalInternalCost = totalDetectionInternalCost + totalRemedyInternalCost;
     const totalBudget = totalExternalCost + totalInternalCost;
 
     return {
@@ -1912,14 +1885,13 @@ getDefaultCostAssumptions() {
       hourlyRate: safeHourlyRate,
       totalExternalCost,
       totalInternalCost,
-      totalToolInternalCost,
-      totalResponseInternalCost,
+      totalDetectionInternalCost,
+      totalRemedyInternalCost,
       totalBudget,
       costPerSupplier: totalBudget / safeSupplierCount,
       toolDeployments,
-      responseDeployments,
       currentAllocation: safeHrddStrategy,
-      responseAllocation: safeResponsivenessStrategy
+      toolRemedyInternalHours: safeToolRemedyInternalHours
     };
   }
 
@@ -1959,953 +1931,337 @@ getDefaultCostAssumptions() {
 // Enhanced budget optimization algorithm for RiskEngine.js
 // Replace the existing optimizeBudgetAllocation method with this improved version
 
-optimizeBudgetAllocation(
-  supplierCount,
-  hourlyRate,
-  toolAnnualProgrammeCosts,
-  toolPerSupplierCosts,
-  toolInternalHours,
-  responseInternalHours,
-  hrddStrategy,
-  transparencyEffectiveness,
-  responsivenessStrategy,
-  responsivenessEffectiveness,
-  selectedCountries,
-  countryVolumes,
-  countryRisks,
-  focus,
-  enforceSAQConstraint = false // NEW: SAQ constraint parameter
-) {
-  // Check if Panel 6 is enabled
-  if (typeof window !== 'undefined' && window.hrddApp && !window.hrddApp.ENABLE_PANEL_6) {
-    return null;
-  }
 
-  // Calculate current budget and effectiveness
-  const currentBudget = this.calculateBudgetAnalysis(
-    supplierCount, hourlyRate, toolAnnualProgrammeCosts, toolPerSupplierCosts,
-    toolInternalHours, responseInternalHours, hrddStrategy, transparencyEffectiveness,
-    responsivenessStrategy, responsivenessEffectiveness, selectedCountries,
-    countryVolumes, countryRisks, focus
-  );
-
-  if (!currentBudget) return null;
-
-  // ENHANCED: Stricter budget constraints
-  const targetBudget = currentBudget.totalBudget;
-  const budgetTolerance = targetBudget * 0.02; // Reduced from 5% to 2%
-  const minImprovementThreshold = 0.1; // Minimum 0.1 percentage points improvement in risk reduction
-
-  // Calculate current effectiveness baseline
-  const currentDetails = this.calculateManagedRiskDetails(
-    selectedCountries, countryVolumes, countryRisks,
-    hrddStrategy, transparencyEffectiveness,
-    responsivenessStrategy, responsivenessEffectiveness, focus
-  );
-
-  const currentRiskReduction = currentDetails.baselineRisk - currentDetails.managedRisk;
-  const baselineEffectiveness = currentDetails.baselineRisk > 0
-    ? (currentRiskReduction / currentDetails.baselineRisk * 100)
-    : 0;
-
-  // Check if optimization has been run with current settings
-  const currentStateHash = this.generateOptimizationStateHash({
-    supplierCount, hourlyRate, toolAnnualProgrammeCosts, toolPerSupplierCosts,
-    toolInternalHours, responseInternalHours, hrddStrategy, transparencyEffectiveness,
-    responsivenessStrategy, responsivenessEffectiveness, selectedCountries,
-    countryVolumes, countryRisks, focus, enforceSAQConstraint // Include SAQ constraint in hash
-  });
-
-  // Track whether this is a re-optimization with the exact same inputs
-  const previousOptimizationState =
-    this.lastOptimizationState && this.lastOptimizationState.stateHash === currentStateHash
-      ? this.lastOptimizationState
-      : null;
-  const previousResults = previousOptimizationState?.results || null;
-  const isReOptimization = Boolean(previousResults);
-
-  // ENHANCED: Improved cost calculation with strict budget enforcement
-  const calculateAllocationCost = (toolAllocation, responseAllocation) => {
-    let totalCost = 0;
-    const safeSupplierCount = Math.max(1, Math.floor(supplierCount));
-    const safeHourlyRate = Math.max(0, parseFloat(hourlyRate) || 0);
-    
-    // Panel 3 tool costs
-    toolAllocation.forEach((coverage, index) => {
-      const coverageRatio = Math.max(0, Math.min(1, coverage / 100));
-      const suppliersUsingTool = Math.ceil(safeSupplierCount * coverageRatio);
-      const annualCost = (toolAnnualProgrammeCosts[index] || 0) * coverageRatio;
-      const perSupplierCost = (toolPerSupplierCosts[index] || 0) * suppliersUsingTool;
-      const internalCost = suppliersUsingTool * (toolInternalHours[index] || 0) * safeHourlyRate;
-      totalCost += annualCost + perSupplierCost + internalCost;
-    });
-    
-    // Panel 4 response method costs
-    responseAllocation.forEach((allocation, index) => {
-      const effectiveSuppliers = Math.ceil(safeSupplierCount * (allocation / 100));
-      const internalCost = effectiveSuppliers * (responseInternalHours[index] || 0) * safeHourlyRate;
-      totalCost += internalCost;
-    });
-    
-    return totalCost;
-  };
-
-  // ENHANCED: Stricter evaluation with minimum improvement filter and SAQ constraint
-  const evaluateAllocation = (toolAllocation, responseAllocation) => {
-    // NEW: Validate SAQ constraint first if enabled
-    if (enforceSAQConstraint && !this.validateSAQConstraint(toolAllocation)) {
-      return { 
-        managedRisk: 999, // High penalty 
-        cost: 0, 
-        fitness: 999, 
-        budgetViolation: 0,
-        responseAllocation: [...responseAllocation],
-        valid: false,
-        constraintViolation: 'SAQ constraint violated'
-      };
+  optimizeBudgetAllocation(
+    supplierCount,
+    hourlyRate,
+    toolAnnualProgrammeCosts,
+    toolPerSupplierCosts,
+    toolInternalHours,
+    toolRemedyInternalHours,
+    hrddStrategy,
+    transparencyEffectiveness,
+    responsivenessStrategy,
+    responsivenessEffectiveness,
+    selectedCountries,
+    countryVolumes,
+    countryRisks,
+    focus,
+    enforceSAQConstraint = false
+  ) {
+    // Check if Panel 6 is enabled
+    if (typeof window !== 'undefined' && window.hrddApp && !window.hrddApp.ENABLE_PANEL_6) {
+      return null;
     }
 
-    // Maintain voice linkage constraint
-    const linkedResponseAllocation = [...responseAllocation];
-    linkedResponseAllocation[0] = toolAllocation[0];
-
-    const cost = calculateAllocationCost(toolAllocation, linkedResponseAllocation);
-    
-    // STRICT BUDGET ENFORCEMENT: Reject if over budget
-    if (cost > targetBudget + budgetTolerance) {
-      return { 
-        managedRisk: 999, // High penalty 
-        cost, 
-        fitness: 999, 
-        budgetViolation: cost - targetBudget,
-        responseAllocation: linkedResponseAllocation,
-        valid: false
-      };
-    }
-    
-    // Calculate risk reduction effectiveness
-    const details = this.calculateManagedRiskDetails(
-      selectedCountries, countryVolumes, countryRisks,
-      toolAllocation, transparencyEffectiveness,
-      linkedResponseAllocation, responsivenessEffectiveness, focus
+    const currentBudget = this.calculateBudgetAnalysis(
+      supplierCount, hourlyRate, toolAnnualProgrammeCosts, toolPerSupplierCosts,
+      toolInternalHours, toolRemedyInternalHours, hrddStrategy, transparencyEffectiveness,
+      responsivenessStrategy, responsivenessEffectiveness, selectedCountries,
+      countryVolumes, countryRisks, focus
     );
-    
-    const newRiskReduction = details.baselineRisk - details.managedRisk;
-    const improvementInRiskReduction = newRiskReduction - currentRiskReduction;
-    
-    // MINIMUM IMPROVEMENT FILTER: Reject if improvement < 0.1 percentage points
-    if (improvementInRiskReduction < minImprovementThreshold) {
+
+    if (!currentBudget) return null;
+
+    const targetBudget = currentBudget.totalBudget;
+    const budgetTolerance = Math.max(100, targetBudget * 0.02);
+    const minImprovementThreshold = 0.1;
+
+    const currentDetails = this.calculateManagedRiskDetails(
+      selectedCountries, countryVolumes, countryRisks,
+      hrddStrategy, transparencyEffectiveness,
+      responsivenessStrategy, responsivenessEffectiveness, focus
+    );
+
+    const currentRiskReduction = currentDetails.baselineRisk - currentDetails.managedRisk;
+    const baselineEffectiveness = currentDetails.baselineRisk > 0
+      ? (currentRiskReduction / currentDetails.baselineRisk * 100)
+      : 0;
+
+    const currentStateHash = this.generateOptimizationStateHash({
+      supplierCount, hourlyRate, toolAnnualProgrammeCosts, toolPerSupplierCosts,
+      toolInternalHours, toolRemedyInternalHours, hrddStrategy, transparencyEffectiveness,
+      responsivenessStrategy, responsivenessEffectiveness, selectedCountries,
+      countryVolumes, countryRisks, focus, enforceSAQConstraint
+    });
+
+    const previousOptimizationState =
+      this.lastOptimizationState && this.lastOptimizationState.stateHash === currentStateHash
+        ? this.lastOptimizationState
+        : null;
+    const previousResults = previousOptimizationState?.results || null;
+    const isReOptimization = Boolean(previousResults);
+
+    const toolCount = Array.isArray(this.hrddStrategyLabels)
+      ? this.hrddStrategyLabels.length
+      : (Array.isArray(hrddStrategy) ? hrddStrategy.length : 0);
+
+    const safeSupplierCount = Math.max(1, Math.floor(Number.isFinite(supplierCount) ? supplierCount : currentBudget.supplierCount || 1));
+    const safeHourlyRate = Math.max(0, Number.isFinite(hourlyRate) ? hourlyRate : currentBudget.hourlyRate || 0);
+
+    const getArrayValue = (arr, index, fallback = 0) => {
+      if (Array.isArray(arr) && Number.isFinite(arr[index])) {
+        return Math.max(0, arr[index]);
+      }
+      if (Array.isArray(fallback) && Number.isFinite(fallback[index])) {
+        return Math.max(0, fallback[index]);
+      }
+      return Math.max(0, Number.isFinite(fallback) ? fallback : 0);
+    };
+
+    const toolCostPerPercent = Array.from({ length: toolCount }, (_, index) => {
+      const programmeCost = getArrayValue(toolAnnualProgrammeCosts, index, 0) / 100;
+      const perSupplierCost = getArrayValue(toolPerSupplierCosts, index, 0);
+      const detectionHours = getArrayValue(toolInternalHours, index, 0);
+      const remedyHours = getArrayValue(toolRemedyInternalHours, index, 0);
+      const variableCost = (perSupplierCost + (detectionHours + remedyHours) * safeHourlyRate) * (safeSupplierCount / 100);
+      return programmeCost + variableCost;
+    });
+
+    const clampAllocation = (allocation) => Array.from({ length: toolCount }, (_, index) => {
+      const value = Array.isArray(allocation) && Number.isFinite(allocation[index])
+        ? allocation[index]
+        : 0;
+      return Math.max(0, Math.min(100, value));
+    });
+
+    const calculateCost = (allocation) => {
+      return clampAllocation(allocation).reduce((sum, coverage, index) => {
+        return sum + coverage * toolCostPerPercent[index];
+      }, 0);
+    };
+
+    const normalizeToBudget = (allocation) => {
+      let normalized = clampAllocation(allocation);
+      if (enforceSAQConstraint) {
+        normalized = this.enforceSAQConstraint(normalized);
+      }
+
+      if (!(targetBudget > 0)) {
+        return normalized;
+      }
+
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const cost = calculateCost(normalized);
+        if (Math.abs(cost - targetBudget) <= budgetTolerance || cost === 0) {
+          break;
+        }
+        const ratio = targetBudget / cost;
+        normalized = normalized.map(value => Math.max(0, Math.min(100, value * ratio)));
+        if (enforceSAQConstraint) {
+          normalized = this.enforceSAQConstraint(normalized);
+        }
+      }
+
+      return clampAllocation(normalized);
+    };
+
+    let validSolutionsFound = 0;
+
+    const evaluateAllocation = (allocation) => {
+      const candidate = normalizeToBudget(allocation);
+      const cost = calculateCost(candidate);
+      const details = this.calculateManagedRiskDetails(
+        selectedCountries, countryVolumes, countryRisks,
+        candidate, transparencyEffectiveness,
+        responsivenessStrategy, responsivenessEffectiveness, focus
+      );
+
+      const riskReduction = details.baselineRisk - details.managedRisk;
+      const effectiveness = details.baselineRisk > 0
+        ? (riskReduction / details.baselineRisk * 100)
+        : 0;
+
+      const budgetGap = Math.abs(cost - targetBudget);
+      const budgetViolation = Math.max(0, budgetGap - budgetTolerance);
+      if (budgetViolation <= 0) {
+        validSolutionsFound += 1;
+      }
+      const budgetPenalty = budgetViolation > 0
+        ? (budgetViolation / Math.max(1, targetBudget)) * 500
+        : 0;
+
+      const fitness = details.managedRisk + budgetPenalty;
+
       return {
-        managedRisk: details.managedRisk,
+        allocation: candidate,
         cost,
-        fitness: details.managedRisk + 50, // Penalty for insufficient improvement
-        budgetViolation: Math.abs(cost - targetBudget),
-        responseAllocation: linkedResponseAllocation,
-        valid: false,
-        improvementInRiskReduction,
-        riskReduction: newRiskReduction
+        details,
+        riskReduction,
+        effectiveness,
+        budgetViolation,
+        fitness
       };
-    }
-    
-    // Fitness = managed risk (lower is better) with small budget penalty
-    const budgetPenalty = Math.abs(cost - targetBudget) / targetBudget * 2;
-    const fitness = details.managedRisk + budgetPenalty;
-    
-     return {
-      managedRisk: details.managedRisk,
-      cost,
-      fitness,
-      budgetViolation: Math.abs(cost - targetBudget),
-      responseAllocation: linkedResponseAllocation,
-      valid: true,
-      improvementInRiskReduction,
-      riskReduction: newRiskReduction
-    };
-  };
-
-  // Initialize tracking variables
-   let bestToolAllocation = [...hrddStrategy];
-  let bestResponseAllocation = [...responsivenessStrategy];
-  let bestFitness = Infinity;
-  let validSolutionsFound = 0;
-  let maxAttempts = 5; // Maximum restart attempts
-  let currentAttempt = 0;
-  let totalIterationsRun = 0;
-  const desiredValidSolutions = 12;
-
-  const getNow = typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? () => performance.now()
-    : () => Date.now();
-  const startTime = getNow();
-  const maxDurationMs = 4500;
-  const shouldStopForTime = () => (getNow() - startTime) >= maxDurationMs;
-
-  const updateProgress = (phase, iteration, total) => {
-    if (typeof document !== 'undefined') {
-      const progressEl = document.getElementById('optimizationProgress');
-      if (progressEl) {
-        progressEl.textContent = `${phase} - Attempt ${currentAttempt + 1}/${maxAttempts} (${iteration}/${total})`;
-      }
-    }
-  };
-
-  // ENHANCED: Improved budget adjustment with multiple strategies and SAQ constraint support
-  const adjustToBudget = (toolAllocation, responseAllocation, strategy = 'balanced') => {
-    const maxAdjustments = 50;
-    let adjustments = 0;
-    let currentTools = [...toolAllocation];
-    let currentResponses = [...responseAllocation];
-    
-    // NEW: Enforce SAQ constraint first if enabled
-    if (enforceSAQConstraint) {
-      currentTools = this.enforceSAQConstraint(currentTools);
-    }
-    
-    while (adjustments < maxAdjustments) {
-      const currentCost = calculateAllocationCost(currentTools, currentResponses);
-      const difference = currentCost - targetBudget;
-      
-      if (Math.abs(difference) <= budgetTolerance) break;
-      
-      if (difference > 0) {
-        // Cost too high - reduce strategically based on strategy
-        if (strategy === 'preserve_voice') {
-          // NEW: When SAQ constraint is active, only adjust tools 1, 2, 3
-          const adjustableTools = enforceSAQConstraint 
-            ? [1, 2, 3].filter(i => currentTools[i] > 15)
-            : [1, 2, 3, 4, 5].filter(i => currentTools[i] > 15);
-          
-          if (adjustableTools.length > 0) {
-            const toolToReduce = adjustableTools[Math.floor(Math.random() * adjustableTools.length)];
-            currentTools[toolToReduce] = Math.max(10, currentTools[toolToReduce] - 8);
-          } else {
-            const responseMethods = [1, 2, 3, 4, 5].filter(i => currentResponses[i] > 15);
-            if (responseMethods.length > 0) {
-              const methodToReduce = responseMethods[Math.floor(Math.random() * responseMethods.length)];
-              currentResponses[methodToReduce] = Math.max(10, currentResponses[methodToReduce] - 8);
-            }
-          }
-        } else if (strategy === 'efficiency_focused') {
-          // Reduce lowest efficiency tools first
-          const toolEfficiencies = [90, 45, 25, 15, 12, 5]; // Base effectiveness from transparencyEffectiveness
-          // NEW: When SAQ constraint is active, only consider tools 1, 2, 3 for reduction
-          const inefficientTools = enforceSAQConstraint 
-            ? [1, 2, 3].filter(i => currentTools[i] > 15)
-            : [2, 3, 4, 5].filter(i => currentTools[i] > 15);
-          
-          if (inefficientTools.length > 0) {
-            // Sort by efficiency (lower first)
-            inefficientTools.sort((a, b) => toolEfficiencies[a] - toolEfficiencies[b]);
-            currentTools[inefficientTools[0]] = Math.max(10, currentTools[inefficientTools[0]] - 10);
-          }
-        } else {
-          // Balanced approach
-          // NEW: When SAQ constraint is active, exclude tools 4 and 5 from adjustment
-          const allTools = enforceSAQConstraint 
-            ? [0, 1, 2, 3].filter(i => currentTools[i] > 12)
-            : [0, 1, 2, 3, 4, 5].filter(i => currentTools[i] > 12);
-          
-          if (allTools.length > 0) {
-            const toolToReduce = allTools[Math.floor(Math.random() * allTools.length)];
-            const reduction = toolToReduce === 0 ? 5 : 8; // Smaller reduction for voice
-            currentTools[toolToReduce] = Math.max(8, currentTools[toolToReduce] - reduction);
-            if (toolToReduce === 0) currentResponses[0] = currentTools[0]; // Maintain linkage
-          }
-        }
-        
-        // NEW: Re-enforce SAQ constraint after any tool adjustments
-        if (enforceSAQConstraint) {
-          currentTools = this.enforceSAQConstraint(currentTools);
-        }
-      } else {
-        // Cost too low - increase strategically
-        if (strategy === 'voice_priority') {
-          if (currentTools[0] < 85) {
-            currentTools[0] = Math.min(95, currentTools[0] + 8);
-            currentResponses[0] = currentTools[0];
-          } else if (currentTools[2] < 85) { // Unannounced audits
-            currentTools[2] = Math.min(95, currentTools[2] + 6);
-          }
-        } else {
-          // Increase highest efficiency tools
-          if (currentTools[0] < 90) {
-            currentTools[0] = Math.min(95, currentTools[0] + 6);
-            currentResponses[0] = currentTools[0];
-          } else if (currentTools[1] < 90) { // Worker surveys
-            currentTools[1] = Math.min(95, currentTools[1] + 6);
-          }
-        }
-        
-        // NEW: Re-enforce SAQ constraint after any tool adjustments
-        if (enforceSAQConstraint) {
-          currentTools = this.enforceSAQConstraint(currentTools);
-        }
-      }
-      
-      adjustments++;
-    }
-    
-    return [currentTools, currentResponses];
-  };
-
-  // ENHANCED: Multi-restart optimization with different strategies and SAQ constraint support
-  const runOptimizationRound = (startingStrategy = 'balanced') => {
-    let localBestTools = [...hrddStrategy];
-    let localBestResponses = [...responsivenessStrategy];
-    let localBestFitness = Infinity;
-    let localValidSolutions = 0;
-
-    // NEW: Ensure initial allocation satisfies SAQ constraint if enabled
-    if (enforceSAQConstraint) {
-      localBestTools = this.enforceSAQConstraint(localBestTools);
-    }
-
-    // PHASE 1: Enhanced Simulated Annealing with SAQ constraint support
-    const runEnhancedSimulatedAnnealing = (iterations = 200) => {
-      let currentTools = [...localBestTools];
-      let currentResponses = [...localBestResponses];
-      let currentResult = evaluateAllocation(currentTools, currentResponses);
-      
-      if (!currentResult.valid) {
-        // Try to adjust to budget first
-        [currentTools, currentResponses] = adjustToBudget(currentTools, currentResponses, startingStrategy);
-        currentResult = evaluateAllocation(currentTools, currentResponses);
-      }
-      
-      let temperature = 20.0;
-      const coolingRate = 0.95;
-      
-        for (let i = 0; i < iterations; i++) {
-        if (shouldStopForTime()) break;
-        totalIterationsRun++;
-        updateProgress('Simulated Annealing', i + 1, iterations);
-        
-        // Generate neighbor with budget-aware moves and SAQ constraint support
-       let newTools = currentTools.map((val, idx) => {
-          const stepSize = Math.random() * 12 - 6;
-          const voiceBonus = idx === 0 && startingStrategy === 'voice_priority' ? 3 : 0;
-          return Math.max(8, Math.min(92, val + stepSize + voiceBonus * Math.random()));
-        });
-
-        // NEW: Enforce SAQ constraint if enabled
-        if (enforceSAQConstraint) {
-          newTools = this.enforceSAQConstraint(newTools);
-        }
-
-        let newResponses = [...currentResponses];
-        newResponses[0] = newTools[0]; // Voice linkage
-        for (let j = 1; j < newResponses.length; j++) {
-          const stepSize = Math.random() * 10 - 5;
-          newResponses[j] = Math.max(8, Math.min(92, newResponses[j] + stepSize));
-        }
-        
-        // Quick budget check before expensive evaluation
-        const estimatedCost = calculateAllocationCost(newTools, newResponses);
-        if (estimatedCost > targetBudget + budgetTolerance * 2) {
-          [newTools, newResponses] = adjustToBudget(newTools, newResponses, startingStrategy);
-        }
-        
-        const newResult = evaluateAllocation(newTools, newResponses);
-        
-        if (newResult.valid) {
-          localValidSolutions++;
-          const deltaFitness = newResult.fitness - currentResult.fitness;
-          const acceptProbability = deltaFitness <= 0 ? 1.0 : Math.exp(-deltaFitness / temperature);
-          
-          if (Math.random() < acceptProbability) {
-            currentTools = newTools;
-            currentResponses = newResult.responseAllocation;
-            currentResult = newResult;
-            
-            if (newResult.fitness < localBestFitness) {
-              localBestTools = [...newTools];
-              localBestResponses = [...newResult.responseAllocation];
-              localBestFitness = newResult.fitness;
-            }
-          }
-        }
-        
-        temperature *= coolingRate;
-      }
     };
 
-    // PHASE 2: Budget-Constrained Genetic Algorithm with SAQ constraint support
-    const runBudgetConstrainedGA = (generations = 120, populationSize = 20) => {
-      const population = [];
-      
-      // Create initial population with budget adjustment and SAQ constraint
-      const strategies = [
-        { tools: [75, 45, 20, 25, 55, 75], responses: [75, 12, 25, 20, 15, 8] },
-        { tools: [35, 25, 55, 40, 70, 80], responses: [35, 18, 30, 25, 12, 10] },
-        { tools: [60, 40, 35, 30, 50, 65], responses: [60, 15, 28, 22, 18, 8] },
-        { tools: [...localBestTools], responses: [...localBestResponses] }
-      ];
-      
-      strategies.forEach(strategy => {
-        let adjTools = [...strategy.tools];
-        // NEW: Enforce SAQ constraint if enabled
-        if (enforceSAQConstraint) {
-          adjTools = this.enforceSAQConstraint(adjTools);
-        }
-        const [finalTools, adjResponses] = adjustToBudget(adjTools, strategy.responses, startingStrategy);
-        population.push({
-          tools: finalTools,
-          responses: adjResponses,
-          fitness: Infinity
-        });
-      });
-      
-      // Fill population with budget-adjusted random individuals
-       while (population.length < populationSize) {
-        if (shouldStopForTime()) break;
-        let randomTools = Array.from({ length: 6 }, () => Math.random() * 80 + 10);
-        
-        // NEW: Enforce SAQ constraint if enabled
-        if (enforceSAQConstraint) {
-          randomTools = this.enforceSAQConstraint(randomTools);
-        }
-        
-        let randomResponses = Array.from({ length: 6 }, (_, i) =>
-          i === 0 ? randomTools[0] : Math.random() * 80 + 10
-        );
-        
-        [randomTools, randomResponses] = adjustToBudget(randomTools, randomResponses, startingStrategy);
-        
-        population.push({
-          tools: randomTools,
-          responses: randomResponses,
-          fitness: Infinity
-        });
+    let currentAllocation = normalizeToBudget(hrddStrategy);
+    let bestEvaluation = evaluateAllocation(currentAllocation);
+    let evaluations = 1;
+
+    const considerCandidate = (allocation) => {
+      const evaluated = evaluateAllocation(allocation);
+      evaluations += 1;
+      if (evaluated.fitness + 1e-6 < bestEvaluation.fitness) {
+        bestEvaluation = evaluated;
+        currentAllocation = evaluated.allocation;
+        return true;
       }
-      
-      // Evaluate population
-      population.forEach(individual => {
-        const result = evaluateAllocation(individual.tools, individual.responses);
-        individual.fitness = result.fitness;
-        individual.valid = result.valid;
-        individual.responseAllocation = result.responseAllocation;
-        if (result.valid) localValidSolutions++;
-      });
-      
-      // Evolution with budget constraints and SAQ constraint support
-       for (let gen = 0; gen < generations; gen++) {
-        if (shouldStopForTime()) break;
-        totalIterationsRun++;
-        updateProgress('Genetic Algorithm', gen + 1, generations);
-        
-        // Selection: prefer valid solutions
-        const selectParent = () => {
-          const validIndividuals = population.filter(ind => ind.valid);
-          if (validIndividuals.length > 0) {
-            return validIndividuals.reduce((best, current) => 
-              current.fitness < best.fitness ? current : best
-            );
-          }
-          return population[Math.floor(Math.random() * population.length)];
-        };
-        
-        const newPopulation = [];
-        
-        // Keep best valid solutions (elitism)
-        const validSorted = population.filter(ind => ind.valid).sort((a, b) => a.fitness - b.fitness);
-        const eliteCount = Math.min(3, validSorted.length);
-        for (let i = 0; i < eliteCount; i++) {
-          newPopulation.push({ ...validSorted[i] });
-        }
-        
-        // Generate offspring with budget awareness and SAQ constraint support
-        while (newPopulation.length < populationSize) {
-          if (shouldStopForTime()) break;
-          const parent1 = selectParent();
-          const parent2 = selectParent();
-          
-          const child = { tools: [], responses: [], fitness: Infinity };
-          
-          // Budget-aware crossover
-          for (let i = 0; i < 6; i++) {
-            const alpha = 0.6 + (Math.random() - 0.5) * 0.3;
-            let toolValue = alpha * parent1.tools[i] + (1 - alpha) * parent2.tools[i];
-            let responseValue = i === 0 ? toolValue : 
-              alpha * parent1.responses[i] + (1 - alpha) * parent2.responses[i];
-            
-            // Conservative mutation to stay within budget
-            const mutationStrength = 6;
-            toolValue += (Math.random() - 0.5) * mutationStrength;
-            if (i > 0) responseValue += (Math.random() - 0.5) * mutationStrength;
-            
-            child.tools[i] = Math.max(8, Math.min(92, toolValue));
-            child.responses[i] = Math.max(8, Math.min(92, i === 0 ? child.tools[i] : responseValue));
-          }
-          
-          // NEW: Enforce SAQ constraint if enabled
-          if (enforceSAQConstraint) {
-            child.tools = this.enforceSAQConstraint(child.tools);
-          }
-          
-          // Ensure budget compliance
-          [child.tools, child.responses] = adjustToBudget(child.tools, child.responses, startingStrategy);
-          
-          const result = evaluateAllocation(child.tools, child.responses);
-          child.fitness = result.fitness;
-          child.valid = result.valid;
-          child.responseAllocation = result.responseAllocation;
-          if (result.valid) localValidSolutions++;
-          
-          if (result.valid && result.fitness < localBestFitness) {
-            localBestTools = [...child.tools];
-            localBestResponses = [...child.responseAllocation];
-            localBestFitness = result.fitness;
-          }
-          
-          newPopulation.push(child);
-        }
-        
-        population.splice(0, population.length, ...newPopulation);
-      }
+      return false;
     };
 
-    // PHASE 3: Budget-Constrained Local Search with SAQ constraint support
-    const runBudgetConstrainedLocalSearch = (iterations = 100) => {
-      let currentTools = [...localBestTools];
-      let currentResponses = [...localBestResponses];
-      let currentResult = evaluateAllocation(currentTools, currentResponses);
-      
-      if (!currentResult.valid) {
-        [currentTools, currentResponses] = adjustToBudget(currentTools, currentResponses, startingStrategy);
-        currentResult = evaluateAllocation(currentTools, currentResponses);
-      }
-      
-       for (let iter = 0; iter < iterations; iter++) {
-        if (shouldStopForTime()) break;
-        totalIterationsRun++;
-        updateProgress('Local Search', iter + 1, iterations);
-        
-        let improved = false;
-        const stepSize = Math.max(3, 10 * (1 - iter / iterations));
-        
-        // Try improvements on each tool (respecting SAQ constraint)
-        const toolsToTry = enforceSAQConstraint ? [0, 1, 2, 3] : [0, 1, 2, 3, 4, 5]; // Exclude SAQ tools if constraint active
-        
-        for (let toolIdx of toolsToTry) {
-          for (const direction of [stepSize, -stepSize]) {
-            const newTools = [...currentTools];
-            newTools[toolIdx] = Math.max(8, Math.min(92, newTools[toolIdx] + direction));
-            
-            // NEW: Enforce SAQ constraint if enabled
-            if (enforceSAQConstraint) {
-              newTools[4] = currentTools[4]; // Preserve SAQ tools
-              newTools[5] = currentTools[5];
-            }
-            
-            const newResponses = [...currentResponses];
-            if (toolIdx === 0) newResponses[0] = newTools[0]; // Voice linkage
-            
-            // Quick budget pre-check
-            const estimatedCost = calculateAllocationCost(newTools, newResponses);
-            if (estimatedCost > targetBudget + budgetTolerance * 1.5) continue;
-            
-            const result = evaluateAllocation(newTools, newResponses);
-            
-            if (result.valid && result.fitness < currentResult.fitness) {
-              currentTools = newTools;
-              currentResponses = result.responseAllocation;
-              currentResult = result;
-              localValidSolutions++;
-              
-              if (result.fitness < localBestFitness) {
-                localBestTools = [...newTools];
-                localBestResponses = [...result.responseAllocation];
-                localBestFitness = result.fitness;
-              }
-              
+    const stepSizes = [12, 8, 5, 3, 2, 1];
+    const directions = [-1, 1];
+
+    stepSizes.forEach(step => {
+      let improved = true;
+      let iteration = 0;
+      const maxIterations = 120;
+
+      while (improved && iteration < maxIterations) {
+        improved = false;
+        iteration += 1;
+
+        for (let index = 0; index < toolCount; index++) {
+          for (const direction of directions) {
+            const candidate = [...currentAllocation];
+            candidate[index] = Math.max(0, Math.min(100, candidate[index] + direction * step));
+            if (considerCandidate(candidate)) {
               improved = true;
               break;
             }
           }
           if (improved) break;
         }
-        
-        if (!improved) {
-          // Try response methods (excluding voice)
-          for (let respIdx = 1; respIdx < 6; respIdx++) {
-            for (const direction of [stepSize, -stepSize]) {
-              const newResponses = [...currentResponses];
-              newResponses[respIdx] = Math.max(8, Math.min(92, newResponses[respIdx] + direction));
-              
-              const result = evaluateAllocation(currentTools, newResponses);
-              
-              if (result.valid && result.fitness < currentResult.fitness) {
-                currentResponses = result.responseAllocation;
-                currentResult = result;
-                localValidSolutions++;
-                
-                if (result.fitness < localBestFitness) {
-                  localBestTools = [...currentTools];
-                  localBestResponses = [...result.responseAllocation];
-                  localBestFitness = result.fitness;
-                }
-                
-                improved = true;
-                break;
-              }
-            }
-            if (improved) break;
-          }
-        }
-        
-        if (!improved) break; // Local optimum reached
       }
-    };
+    });
 
-    // Execute phases for this round
-    runEnhancedSimulatedAnnealing();
-    runBudgetConstrainedGA();
-    runBudgetConstrainedLocalSearch();
-
-    return {
-      bestTools: localBestTools,
-      bestResponses: localBestResponses,
-      bestFitness: localBestFitness,
-      validSolutions: localValidSolutions
-    };
-  };
-
-  // MAIN OPTIMIZATION LOOP: Multiple attempts with different strategies
-  const strategies = ['balanced', 'voice_priority', 'efficiency_focused', 'preserve_voice'];
-  
-  for (currentAttempt = 0; currentAttempt < maxAttempts; currentAttempt++) {
-    if (shouldStopForTime()) break;
-    const strategy = strategies[currentAttempt % strategies.length];
-    updateProgress(`Strategy: ${strategy}`, 0, 100);
-
-    const roundResult = runOptimizationRound(strategy);
-    validSolutionsFound += roundResult.validSolutions;
-    
-    if (roundResult.bestFitness < bestFitness) {
-      bestToolAllocation = [...roundResult.bestTools];
-      bestResponseAllocation = [...roundResult.bestResponses];
-      bestFitness = roundResult.bestFitness;
+    const randomAttempts = 60;
+    for (let attempt = 0; attempt < randomAttempts; attempt++) {
+      const candidate = currentAllocation.map(value => {
+        const noise = (Math.random() - 0.5) * 20;
+        return Math.max(0, Math.min(100, value + noise));
+      });
+      considerCandidate(candidate);
     }
-    
-      // Early exit if we found a good solution and have run enough iterations
-    if ((validSolutionsFound >= desiredValidSolutions && bestFitness < 999 && totalIterationsRun >= 400) || shouldStopForTime()) {
-      break;
-    }
-  }
 
-  // FINAL VALIDATION AND RESULT GENERATION
-  const recordResultsAndReturn = (results) => {
-    this.lastOptimizationState = {
-      stateHash: currentStateHash,
-      results,
-      timestamp: Date.now()
-    };
-    return results;
-  };
+    const optimizedDetails = bestEvaluation.details;
+    const optimizedEffectiveness = bestEvaluation.effectiveness;
+    const improvement = optimizedEffectiveness - baselineEffectiveness;
 
-  const computeRiskReductionPct = (baseline, managed) => {
-    if (!Number.isFinite(baseline) || baseline <= 0) {
-      return 0;
-    }
-    return ((baseline - managed) / baseline) * 100;
-  };
+    if (improvement < minImprovementThreshold) {
+      if (previousResults) {
+        const message = `The existing allocation remains the best option within the current budget. No materially better tool mix was identified despite evaluating ${validSolutionsFound} valid combinations.${enforceSAQConstraint ? ' SAQ constraint was enforced.' : ''}`;
+        const merged = {
+          ...previousResults,
+          insight: message,
+          alreadyOptimized: true,
+          reOptimizationAttempted: true,
+          attemptedValidSolutions: validSolutionsFound,
+          optimizationRun: true,
+          saqConstraintEnforced: enforceSAQConstraint
+        };
+        this.lastOptimizationState = {
+          stateHash: currentStateHash,
+          results: merged,
+          timestamp: Date.now()
+        };
+        return merged;
+      }
 
-  const finalResult = evaluateAllocation(bestToolAllocation, bestResponseAllocation);
-
-  // Check if we found a valid improvement
-  if (!finalResult.valid || finalResult.improvementInRiskReduction < minImprovementThreshold) {
-    updateProgress('No Improvement Found', 100, 100);
-    if (previousResults) {
-      const message = `The existing solution remains the best one found. The optimization explored ${validSolutionsFound} valid configurations but could not identify a material improvement (requiring either lower budget or ${minImprovementThreshold}% better risk reduction while staying within budget).${enforceSAQConstraint ? ' SAQ constraint was enforced.' : ''}`;
-      const merged = {
-        ...previousResults,
-        insight: message,
-        alreadyOptimized: true,
-        reOptimizationAttempted: true,
-        attemptedValidSolutions: validSolutionsFound,
+      const noImprovementResult = {
+        baselineRisk: currentDetails.baselineRisk,
+        currentManagedRisk: currentDetails.managedRisk,
+        optimizedManagedRisk: currentDetails.managedRisk,
+        currentToolAllocation: hrddStrategy,
+        optimizedToolAllocation: hrddStrategy,
+        currentCountryManagedRisks: currentDetails.countryManagedRisks,
+        optimizedCountryManagedRisks: currentDetails.countryManagedRisks,
+        currentRiskReduction,
+        optimizedRiskReduction: currentRiskReduction,
+        currentEffectiveness: baselineEffectiveness,
+        optimizedEffectiveness: baselineEffectiveness,
+        improvement: 0,
+        insight: `No meaningful improvement found after testing ${evaluations} tool mixes within the current budget of ${targetBudget.toLocaleString()}.${enforceSAQConstraint ? ' SAQ constraint (100% coverage) was enforced.' : ''} Consider updating tool effectiveness assumptions or increasing the budget.`,
+        budgetUtilization: targetBudget > 0 ? 100 : 0,
+        budgetConstraintMet: true,
+        finalBudget: targetBudget,
+        targetBudget,
+        algorithmsUsed: ['Focused hill-climb', 'Budget scaling', 'Random perturbations'],
+        validSolutionsFound,
         optimizationRun: true,
+        alreadyOptimized: isReOptimization,
         saqConstraintEnforced: enforceSAQConstraint
       };
-      return recordResultsAndReturn(merged);
+
+      this.lastOptimizationState = {
+        stateHash: currentStateHash,
+        results: noImprovementResult,
+        timestamp: Date.now()
+      };
+
+      return noImprovementResult;
     }
 
-    const noImprovementResult = {
+    const budgetUtilization = targetBudget > 0
+      ? (bestEvaluation.cost / targetBudget) * 100
+      : 100;
+
+    let insight;
+    if (improvement >= 5) {
+      insight = `Substantial improvement achieved (+${improvement.toFixed(1)}% risk reduction). The optimizer shifted investment towards higher-effectiveness tools while respecting remedy utilisation costs.`;
+    } else if (improvement >= 1) {
+      insight = `Noticeable improvement achieved (+${improvement.toFixed(1)}%). Rebalancing tool coverage delivered better detection, remedy, and conduct outcomes within the same budget envelope.`;
+    } else {
+      insight = `Marginal improvement achieved (+${improvement.toFixed(1)}%). Minor adjustments to tool coverage improved performance without increasing spend.`;
+    }
+    if (enforceSAQConstraint) {
+      insight += ` SAQ constraint enforced: Tools 5 and 6 maintain 100% combined coverage (${bestEvaluation.allocation[4].toFixed(1)}% + ${bestEvaluation.allocation[5].toFixed(1)}%).`;
+    }
+
+    const finalResult = {
       baselineRisk: currentDetails.baselineRisk,
       currentManagedRisk: currentDetails.managedRisk,
-      optimizedManagedRisk: currentDetails.managedRisk,
+      optimizedManagedRisk: optimizedDetails.managedRisk,
+      currentRiskReduction,
+      optimizedRiskReduction: bestEvaluation.riskReduction,
       currentToolAllocation: hrddStrategy,
-      currentResponseAllocation: responsivenessStrategy,
-      optimizedToolAllocation: hrddStrategy,
-      optimizedResponseAllocation: responsivenessStrategy,
+      optimizedToolAllocation: bestEvaluation.allocation,
       currentCountryManagedRisks: currentDetails.countryManagedRisks,
-      optimizedCountryManagedRisks: currentDetails.countryManagedRisks,
-      currentRiskReduction: currentRiskReduction,
-      optimizedRiskReduction: currentRiskReduction,
+      optimizedCountryManagedRisks: optimizedDetails?.countryManagedRisks
+        ? optimizedDetails.countryManagedRisks
+        : currentDetails.countryManagedRisks,
       currentEffectiveness: baselineEffectiveness,
-      optimizedEffectiveness: baselineEffectiveness,
-      improvement: 0,
-      insight: `No meaningful improvement found after ${currentAttempt + 1} optimization attempts. Your current allocation appears to be near-optimal within the budget constraint of ${targetBudget.toLocaleString()}.${enforceSAQConstraint ? ' SAQ constraint (100% coverage) was enforced.' : ''} Consider increasing budget or adjusting strategy parameters for further optimization.`,
-      budgetUtilization: 100,
-      budgetConstraintMet: true,
-      finalBudget: targetBudget,
+      optimizedEffectiveness,
+      improvement,
+      insight,
+      budgetUtilization,
+      budgetConstraintMet: bestEvaluation.budgetViolation <= 0,
+      finalBudget: bestEvaluation.cost,
       targetBudget,
-      algorithmsUsed: ['Enhanced Simulated Annealing', 'Budget-Constrained GA', 'Local Search'],
+      algorithmsUsed: ['Focused hill-climb', 'Budget scaling', 'Random perturbations'],
       validSolutionsFound,
       optimizationRun: true,
-      alreadyOptimized: false,
-      saqConstraintEnforced: enforceSAQConstraint
+      alreadyOptimized: isReOptimization,
+      reOptimizationAttempted: isReOptimization,
+      attemptedValidSolutions: validSolutionsFound,
+      saqConstraintEnforced: enforceSAQConstraint,
+      evaluations,
+      toolChanges: bestEvaluation.allocation.map((alloc, i) => ({
+        tool: this.hrddStrategyLabels[i] || `Tool ${i + 1}`,
+        current: hrddStrategy[i],
+        optimized: alloc,
+        change: alloc - hrddStrategy[i]
+      }))
     };
 
-    return recordResultsAndReturn(noImprovementResult);
-  }
-
-  // If we have previous optimization results, check if new results meet improvement criteria
-  let comparisonMetrics = null;
-  if (previousResults) {
-    const prevManagedRisk = previousResults.optimizedManagedRisk ?? previousResults.currentManagedRisk ?? currentDetails.managedRisk;
-    const prevBudget = previousResults.finalBudget ?? previousResults.targetBudget ?? targetBudget;
-    const newManagedRisk = finalResult.managedRisk;
-    const newBudget = finalResult.cost;
-
-    const previousRiskReductionPct = computeRiskReductionPct(currentDetails.baselineRisk, prevManagedRisk);
-    const newRiskReductionPct = computeRiskReductionPct(currentDetails.baselineRisk, newManagedRisk);
-
-    const budgetImprovement = prevBudget - newBudget;
-    const riskImprovement = prevManagedRisk - newManagedRisk;
-    const riskImprovementPercentage = newRiskReductionPct - previousRiskReductionPct;
-    const comparisonTolerance = Math.max(budgetTolerance, prevBudget * 0.001);
-
-    // Criteria A: Lower budget with same or better managed risk (allow very small tolerance)
-    const criteriaA = (budgetImprovement > comparisonTolerance) && (riskImprovement >= -0.05);
-
-    // Criteria B: Material risk improvement (0.1 percentage points) while staying within (or below) previous budget
-    const criteriaB = (riskImprovementPercentage >= minImprovementThreshold) &&
-                     (newBudget <= prevBudget + comparisonTolerance);
-
-    if (!criteriaA && !criteriaB) {
-      updateProgress('Existing Solution Optimal', 100, 100);
-      const message = `The existing solution remains the best one found. The optimization explored ${validSolutionsFound} valid configurations but did not beat the previous outcome (requires either lower budget or ${minImprovementThreshold}% additional risk reduction while staying within budget).${enforceSAQConstraint ? ' SAQ constraint was enforced.' : ''}`;
-      const merged = {
-        ...previousResults,
-        insight: message,
-        alreadyOptimized: true,
-        reOptimizationAttempted: true,
-        attemptedValidSolutions: validSolutionsFound,
-        optimizationRun: true,
-        saqConstraintEnforced: enforceSAQConstraint,
-        criteriaChecked: {
-          budgetImprovement: budgetImprovement.toFixed(2),
-          riskImprovement: riskImprovement.toFixed(2),
-          riskImprovementPercentage: riskImprovementPercentage.toFixed(2),
-          criteriaAMet: criteriaA,
-          criteriaBMet: criteriaB
-        }
-      };
-      return recordResultsAndReturn(merged);
-    }
-
-    comparisonMetrics = {
-      budgetImprovement: budgetImprovement.toFixed(2),
-      riskImprovement: riskImprovement.toFixed(2),
-      riskImprovementPercentage: riskImprovementPercentage.toFixed(2),
-      criteriaAMet: criteriaA,
-      criteriaBMet: criteriaB
+    this.lastOptimizationState = {
+      stateHash: currentStateHash,
+      results: finalResult,
+      timestamp: Date.now()
     };
+
+    return finalResult;
   }
-
-  // Calculate final metrics
-  const optimizedDetails = this.calculateManagedRiskDetails(
-    selectedCountries, countryVolumes, countryRisks,
-    bestToolAllocation, transparencyEffectiveness,
-    bestResponseAllocation, responsivenessEffectiveness, focus
-  );
-
-  const optimizedEffectiveness = optimizedDetails.managedRisk < optimizedDetails.baselineRisk ?
-    ((optimizedDetails.baselineRisk - optimizedDetails.managedRisk) / optimizedDetails.baselineRisk * 100) : 0;
-
-  const improvement = optimizedEffectiveness - baselineEffectiveness;
-  const voiceIncrease = bestToolAllocation[0] - hrddStrategy[0];
-
-  // Generate enhanced insight with SAQ constraint information
-  let insight = '';
-  if (improvement > 10) {
-    insight = `Exceptional optimization achieved: ${improvement.toFixed(1)}% better risk reduction through advanced multi-strategy optimization. `;
-    if (voiceIncrease > 15) {
-      insight += `Key finding: dramatically increase continuous worker voice coverage (+${voiceIncrease.toFixed(0)}%). `;
-    }
-    insight += `The enhanced algorithm tested ${currentAttempt + 1} strategic approaches to find this superior configuration within budget.`;
-  } else if (improvement > 5) {
-    insight = `Significant optimization achieved (${improvement.toFixed(1)}% improvement) through systematic analysis of ${validSolutionsFound} valid tool combinations within strict budget constraints.`;
-  } else if (improvement > 1) {
-    insight = `Meaningful optimization identified (${improvement.toFixed(1)}% improvement). The enhanced multi-strategy approach found incremental improvements through intelligent resource reallocation.`;
-  } else {
-    insight = `Minor optimization achieved (${improvement.toFixed(1)}% improvement). Your allocation was already well-optimized, but the enhanced algorithm found small efficiency gains within budget constraints.`;
-  }
-
-  // Add SAQ constraint information to insight
-  if (enforceSAQConstraint) {
-    insight += ` SAQ constraint enforced: Tools 4+5 maintain exactly 100% supplier coverage (${bestToolAllocation[4].toFixed(1)}% + ${bestToolAllocation[5].toFixed(1)}%).`;
-  }
-
-  updateProgress('Optimization Complete', 100, 100);
-
-  const finalResponse = {
-    baselineRisk: currentDetails.baselineRisk,
-    currentManagedRisk: currentDetails.managedRisk,
-    optimizedManagedRisk: optimizedDetails.managedRisk,
-    currentRiskReduction: currentRiskReduction,
-    optimizedRiskReduction: finalResult.riskReduction,
-    currentToolAllocation: hrddStrategy,
-    currentResponseAllocation: responsivenessStrategy,
-    optimizedToolAllocation: bestToolAllocation,
-    optimizedResponseAllocation: bestResponseAllocation,
-    currentCountryManagedRisks: currentDetails.countryManagedRisks,
-    optimizedCountryManagedRisks: optimizedDetails?.countryManagedRisks
-      ? optimizedDetails.countryManagedRisks
-      : currentDetails.countryManagedRisks,
-    currentEffectiveness: baselineEffectiveness,
-    optimizedEffectiveness: optimizedEffectiveness,
-    improvement,
-    insight,
-    budgetUtilization: (finalResult.cost / targetBudget * 100),
-    budgetConstraintMet: finalResult.budgetViolation <= budgetTolerance,
-    finalBudget: finalResult.cost,
-    targetBudget,
-    algorithmsUsed: ['Enhanced Simulated Annealing', 'Budget-Constrained GA', 'Local Search'],
-    validSolutionsFound,
-    optimizationRun: true,
-    alreadyOptimized: isReOptimization,
-    reOptimizationAttempted: isReOptimization,
-    attemptedValidSolutions: validSolutionsFound,
-    criteriaChecked: comparisonMetrics,
-    saqConstraintEnforced: enforceSAQConstraint,
-
-    // Enhanced breakdown
-    toolChanges: bestToolAllocation.map((alloc, i) => ({
-      tool: this.hrddStrategyLabels[i],
-      current: hrddStrategy[i],
-      optimized: alloc,
-      change: alloc - hrddStrategy[i]
-    })),
-   responseChanges: bestResponseAllocation.map((alloc, i) => ({
-      method: this.responsivenessLabels[i],
-      current: responsivenessStrategy[i],
-      optimized: alloc,
-      change: alloc - responsivenessStrategy[i]
-    }))
-  };
-
-  return recordResultsAndReturn(finalResponse);
 }
 
-  // Helper method to adjust allocation to target budget
-  // Helper method to adjust both tool and response allocations to target budget
-adjustCombinedAllocationToTargetBudget(toolAllocation, responseAllocation, targetBudget, calculateCost) {
-  const maxAdjustments = 30;
-  let adjustments = 0;
-  let currentToolAllocation = [...toolAllocation];
-  let currentResponseAllocation = [...responseAllocation];
-  
-  while (adjustments < maxAdjustments) {
-    const currentCost = calculateCost(currentToolAllocation, currentResponseAllocation);
-    const difference = currentCost - targetBudget;
-    
-    if (Math.abs(difference) < targetBudget * 0.05) break; // Within 5% tolerance
-    
-    if (difference > 0) {
-      // Cost too high, reduce allocations strategically
-      // Priority: reduce non-voice tools first, then response methods, then voice as last resort
-      
-      const nonVoiceToolsWithRoom = [1, 2, 3, 4, 5].filter(i => currentToolAllocation[i] > 10);
-      const responseMethodsWithRoom = [1, 2, 3, 4, 5].filter(i => currentResponseAllocation[i] > 10);
-      
-      if (nonVoiceToolsWithRoom.length > 0) {
-        const toolToReduce = nonVoiceToolsWithRoom[Math.floor(Math.random() * nonVoiceToolsWithRoom.length)];
-        currentToolAllocation[toolToReduce] = Math.max(5, currentToolAllocation[toolToReduce] - 8);
-      } else if (responseMethodsWithRoom.length > 0) {
-        const methodToReduce = responseMethodsWithRoom[Math.floor(Math.random() * responseMethodsWithRoom.length)];
-        currentResponseAllocation[methodToReduce] = Math.max(5, currentResponseAllocation[methodToReduce] - 8);
-      } else if (currentToolAllocation[0] > 15) {
-        // Reduce voice only if necessary and not too low
-        currentToolAllocation[0] = Math.max(10, currentToolAllocation[0] - 5);
-        currentResponseAllocation[0] = currentToolAllocation[0]; // Maintain linkage
-      }
-    } else {
-      // Cost too low, increase allocations strategically
-      // Priority: increase voice first, then high-impact tools/methods
-      
-      if (currentToolAllocation[0] < 85) {
-        currentToolAllocation[0] = Math.min(95, currentToolAllocation[0] + 8);
-        currentResponseAllocation[0] = currentToolAllocation[0]; // Maintain linkage
-      } else if (currentToolAllocation[2] < 85) { // Unannounced audits
-        currentToolAllocation[2] = Math.min(95, currentToolAllocation[2] + 6);
-      } else if (currentResponseAllocation[1] < 85) { // Commercial levers
-        currentResponseAllocation[1] = Math.min(95, currentResponseAllocation[1] + 6);
-      } else {
-        // Increase random allocation
-        const isToolIncrease = Math.random() < 0.6; // 60% chance to increase tools
-        if (isToolIncrease) {
-          const toolToIncrease = Math.floor(Math.random() * 6);
-          if (currentToolAllocation[toolToIncrease] < 90) {
-            currentToolAllocation[toolToIncrease] = Math.min(95, currentToolAllocation[toolToIncrease] + 5);
-            if (toolToIncrease === 0) {
-              currentResponseAllocation[0] = currentToolAllocation[0]; // Maintain linkage
-            }
-          }
-        } else {
-          const methodToIncrease = Math.floor(Math.random() * 6);
-          if (currentResponseAllocation[methodToIncrease] < 90) {
-            currentResponseAllocation[methodToIncrease] = Math.min(95, currentResponseAllocation[methodToIncrease] + 5);
-            if (methodToIncrease === 0) {
-              currentToolAllocation[0] = currentResponseAllocation[0]; // Maintain linkage
-            }
-          }
-        }
-      }
-    }
-    
-    adjustments++;
-  }
-  
-  return [currentToolAllocation, currentResponseAllocation];
-}
-
-// Helper method to adjust allocation to target budget (legacy method kept for compatibility)
-adjustToTargetBudget(allocation, targetBudget, calculateCost) {
-  const maxAdjustments = 20;
-  let adjustments = 0;
-  
-  while (adjustments < maxAdjustments) {
-    const currentCost = calculateCost(allocation);
-    const difference = currentCost - targetBudget;
-    
-    if (Math.abs(difference) < targetBudget * 0.03) break; // Within 3% tolerance
-    
-    if (difference > 0) {
-      // Cost too high, reduce allocation (avoid reducing continuous voice if possible)
-      const nonVoiceTools = [1, 2, 3, 4, 5].filter(i => allocation[i] > 10);
-      if (nonVoiceTools.length > 0) {
-        const toolToReduce = nonVoiceTools[Math.floor(Math.random() * nonVoiceTools.length)];
-        allocation[toolToReduce] = Math.max(5, allocation[toolToReduce] - 5);
-      } else if (allocation[0] > 10) {
-        allocation[0] = Math.max(5, allocation[0] - 5);
-      }
-    } else {
-      // Cost too low, increase allocation (prefer continuous voice)
-      if (allocation[0] < 90) {
-        allocation[0] = Math.min(95, allocation[0] + 5);
-      } else {
-        const toolToIncrease = Math.floor(Math.random() * 6);
-        if (allocation[toolToIncrease] < 90) {
-          allocation[toolToIncrease] = Math.min(95, allocation[toolToIncrease] + 5);
-        }
-      }
-    }
-    
-    adjustments++;
-  }
-  
-  return allocation;
-}
-}
 export const riskEngine = new RiskEngine();

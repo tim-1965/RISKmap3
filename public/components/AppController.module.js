@@ -51,10 +51,9 @@ export class AppController {
         toolPerSupplierCosts: [120, 0, 1000, 0, 0, 0], // Additional per supplier annual cost
         toolInternalHours: [6, 20, 20, 6, 2, 1], // Internal work hours per supplier per year
 
-      // Panel 4 Response Methods - Internal hours only
-      responseInternalHours: [0, 10, 10, 6, 2, 2], // Internal work hours per supplier per year for each response method
+      // Panel 4 Remedy utilisation - Internal hours per tool
+      toolRemedyInternalHours: [0, 10, 10, 6, 2, 2], // Internal work hours per supplier per year to apply each tool's findings
 
-        // NEW: SAQ Coverage Constraint state
         saqConstraintEnabled: false, // Default: unchecked (preserves current behavior)
         } : {}),
 
@@ -147,7 +146,7 @@ export class AppController {
       this.onToolAnnualProgrammeCostChange = this.onToolAnnualProgrammeCostChange.bind(this);
       this.onToolPerSupplierCostChange = this.onToolPerSupplierCostChange.bind(this);
       this.onToolInternalHoursChange = this.onToolInternalHoursChange.bind(this);
-      this.onResponseInternalHoursChange = this.onResponseInternalHoursChange.bind(this);
+      this.onToolRemedyInternalHoursChange = this.onToolRemedyInternalHoursChange.bind(this);
       // NEW: SAQ Constraint handler
       this.onSAQConstraintChange = this.onSAQConstraintChange.bind(this);
     }
@@ -569,10 +568,10 @@ onToolInternalHoursChange(toolIndex, hours) {
   }
 }
 
-onResponseInternalHoursChange(responseIndex, hours) {
+onToolRemedyInternalHoursChange(toolIndex, hours) {
   if (!ENABLE_PANEL_6) return;
-  if (responseIndex >= 0 && responseIndex < this.state.responseInternalHours.length) {
-    this.state.responseInternalHours[responseIndex] = Math.max(0, parseFloat(hours) || 0);
+  if (toolIndex >= 0 && toolIndex < this.state.toolRemedyInternalHours.length) {
+    this.state.toolRemedyInternalHours[toolIndex] = Math.max(0, parseFloat(hours) || 0);
     this.state.isDirty = true;
     this.updateUI();
   }
@@ -596,7 +595,7 @@ onSAQConstraintChange(enabled) {
     this.state.toolAnnualProgrammeCosts,
     this.state.toolPerSupplierCosts,
     this.state.toolInternalHours,
-    this.state.responseInternalHours,
+    this.state.toolRemedyInternalHours,
     this.state.hrddStrategy,
     this.state.transparencyEffectiveness,
     this.state.responsivenessStrategy,
@@ -1424,7 +1423,7 @@ if (ENABLE_PANEL_6 && panel === 6) {
           toolAnnualProgrammeCosts: this.state.toolAnnualProgrammeCosts,
           toolPerSupplierCosts: this.state.toolPerSupplierCosts,
           toolInternalHours: this.state.toolInternalHours,
-          responseInternalHours: this.state.responseInternalHours,
+          responseInternalHours: this.state.RemedyInternalHours,
           hrddStrategy: this.state.hrddStrategy,
           transparencyEffectiveness: this.state.transparencyEffectiveness,
           responsivenessStrategy: this.state.responsivenessStrategy,
@@ -1762,7 +1761,7 @@ if (ENABLE_PANEL_6 && panel === 6) {
         snapshot.toolAnnualProgrammeCosts = [...this.state.toolAnnualProgrammeCosts];
         snapshot.toolPerSupplierCosts = [...this.state.toolPerSupplierCosts];
         snapshot.toolInternalHours = [...this.state.toolInternalHours];
-        snapshot.responseInternalHours = [...this.state.responseInternalHours];
+        snapshot.toolRemedyInternalHours = [...this.state.toolRemedyInternalHours];
         // NEW: Save SAQ constraint state
         snapshot.saqConstraintEnabled = this.state.saqConstraintEnabled;
       }
@@ -1838,8 +1837,8 @@ if (ENABLE_PANEL_6 && panel === 6) {
           );
           restored = true;
         }
-        if (Array.isArray(parsed.responseInternalHours)) {
-          this.state.responseInternalHours = parsed.responseInternalHours.map(value =>
+        if (Array.isArray(parsed.toolRemedyInternalHours)) {
+          this.state.toolRemedyInternalHours = parsed.toolRemedyInternalHours.map(value =>
             Math.max(0, Number.isFinite(value) ? value : 0)
           );
           restored = true;
