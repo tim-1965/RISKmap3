@@ -2160,6 +2160,34 @@ export function createCostAnalysisPanel(containerId, options) {
 
   const initialOptimizedRiskMap = getOptimizedRiskMap(optimization);
 
+  const normalizeRiskValue = (value, fallback = 0) =>
+    typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+  const baselineRiskValue = normalizeRiskValue(
+    baselineRisk,
+    normalizeRiskValue(optimization?.baselineRisk, 1)
+  );
+
+  const managedRiskValue = normalizeRiskValue(
+    managedRisk,
+    normalizeRiskValue(optimization?.currentManagedRisk, baselineRiskValue)
+  );
+
+  const optimizedRiskValue = normalizeRiskValue(
+    optimization?.optimizedManagedRisk,
+    managedRiskValue
+  );
+
+  const formatRiskLevel = value => (Number.isFinite(value) ? value.toFixed(1) : '0.0');
+
+  const baselineRiskDisplay = formatRiskLevel(baselineRiskValue);
+  const managedRiskDisplay = formatRiskLevel(managedRiskValue);
+  const optimizedRiskDisplay = formatRiskLevel(optimizedRiskValue);
+
+  const baselineColor = '#1d4ed8';
+  const managedColor = '#f97316';
+  const optimizedRiskColor = '#16a34a';
+
   const rowCount = strategyCount;
 
   const inputGridTemplate = responsive('1fr', 'repeat(3, minmax(0, 1fr))');
