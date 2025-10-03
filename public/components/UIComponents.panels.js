@@ -814,12 +814,12 @@ export function createResponsivenessPanel(containerId, { responsiveness, onRespo
 
   const toolLabels = riskEngine.hrddStrategyLabels;
   const toolDescriptions = [
-    'It is "always-on" and automatically monitors remedy delivery and follow-up.',
-    'Structured surveys require repetition to monitor delivery and follow-up.',
-    'Surprise audits check the reality of remedy delivery when they happen.',
-    'Self-arranged/planned audits superficially check remedy when they happen.',
-    'Evidence-backed SAQs support remedy if used to drive supplier commitments.',
-    'Self-attested SAQs rarely enable remedy without other levers.'
+    'Enables root cause diagnosis and it is "always-on" so automatically monitors remedy delivery and follow-up.',
+    'Well-structured surveys support root cause diagnosis but need repetition to monitor delivery and follow-up.',
+    'Defines remedy via corrective action plans, follow-up is manual and remedy may not be sustained.',
+    'Defines remedy via corrective action plans, follow-up is manual and remedy may not be sustained.',
+    'Evidence-backed SAQs identify policy gaps but remedy may not reach workers in practice.',
+    'Self-attested SAQs rarely identify policy gaps and rarely enable remedy by themselves.'
   ];
 
   const categoryInfo = [
