@@ -1127,7 +1127,7 @@ function renderComparisonD3Map(worldData, { container, countries, countryRisks, 
       return;
     }
 
-    const rect = wrapper.getBoundingClientRect();
+const rect = wrapper.getBoundingClientRect();
 const containerHeight = rect.height || height || 500;
 
 // Calculate proper width for world map proportions
@@ -1145,7 +1145,7 @@ const svg = d3.select(wrapper)
   .style('background', '#f8fafc');
 
     const projection = d3.geoNaturalEarth1()
-      .fitExtent([[16, 16], [responsiveWidth - 16, responsiveHeight - 16]], featureCollection);
+      .fitExtent([[16, 16], [calculatedWidth - 16, containerHeight - 16]], featureCollection);
     const path = d3.geoPath(projection);
     const mapGroup = svg.append('g').attr('class', 'map-layer');
 
