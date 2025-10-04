@@ -881,7 +881,7 @@ export async function renderCostAnalysisMap(containerId, {
   optimizedRisks = {},
   mode = 'baseline',
   legendContainerId = null,
-  height = 380,
+  height = 480,
   width = 960
 } = {}) {
   const container = document.getElementById(containerId);
