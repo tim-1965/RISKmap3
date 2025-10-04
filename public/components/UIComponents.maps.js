@@ -320,25 +320,28 @@ function getResponsiveDimensions(wrapper, defaultWidth, defaultHeight) {
   const rect = wrapper && typeof wrapper.getBoundingClientRect === 'function'
     ? wrapper.getBoundingClientRect()
     : null;
-  const availableWidth = rect && rect.width
+  const availableWidth = rect && Number.isFinite(rect.width) && rect.width > 0
     ? rect.width
     : (wrapper?.clientWidth || wrapper?.offsetWidth || 0);
 
-  const measuredWidth = availableWidth > 0
+  const measuredWidth = Number.isFinite(availableWidth) && availableWidth > 0
     ? availableWidth
-    : (typeof window !== 'undefined' ? window.innerWidth - 40 : fallbackWidth);
+    : (typeof window !== 'undefined' && Number.isFinite(window.innerWidth)
+      ? Math.max(window.innerWidth - 40, MIN_WIDTH)
+      : fallbackWidth);
 
-  const width = Math.max(
-    Math.min(fallbackWidth, measuredWidth || fallbackWidth),
-    MIN_WIDTH
-  );
+  const rawWidth = Number.isFinite(measuredWidth) && measuredWidth > 0
+    ? measuredWidth
+    : fallbackWidth;
+  const width = Math.max(rawWidth, MIN_WIDTH);
 
-  const aspectRatio = fallbackHeight / fallbackWidth;
-  const responsiveHeight = Math.round(width * aspectRatio);
-  const height = Math.max(
-    Math.min(fallbackHeight, responsiveHeight),
-    MIN_HEIGHT
-  );
+  const aspectRatio = fallbackWidth > 0
+    ? (fallbackHeight / fallbackWidth)
+    : (defaultHeight && defaultWidth ? defaultHeight / defaultWidth : 0.5);
+  const responsiveHeight = aspectRatio > 0
+    ? Math.round(width * aspectRatio)
+    : fallbackHeight;
+  const height = Math.max(responsiveHeight, MIN_HEIGHT);
 
   return { width, height };
 }
