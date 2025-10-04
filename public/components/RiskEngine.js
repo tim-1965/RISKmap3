@@ -1773,7 +1773,7 @@ getDefaultCostAssumptions() {
   };
 }
 
- calculateBudgetAnalysis(
+  calculateBudgetAnalysis(
     supplierCount,
     hourlyRate,
     toolAnnualProgrammeCosts,
@@ -1790,11 +1790,14 @@ getDefaultCostAssumptions() {
     focus
   ) {
 
-  // Check if Panel 6 is enabled (this will be available globally)
-  if (typeof window !== 'undefined' && window.hrddApp && !window.hrddApp.ENABLE_PANEL_6) {
-    return null;
-  }
+    // Check if Panel 6 is enabled (this will be available globally)
+    if (typeof window !== 'undefined' && window.hrddApp && !window.hrddApp.ENABLE_PANEL_6) {
+      return null;
+    }
 
+    // NOTE: Social audit cost adjustments are intentionally excluded here so baseline
+    // budget calculations remain unchanged. The optimization routine applies any
+    // enforced constraints and cost reductions separately when evaluating scenarios.
     const safeSupplierCount = Math.max(1, Math.floor(supplierCount || 1));
     const safeHourlyRate = Math.max(0, Number.isFinite(hourlyRate) ? hourlyRate : 20);
 
@@ -1829,7 +1832,7 @@ getDefaultCostAssumptions() {
       return Number.isFinite(value) ? Math.max(0, value) : 0;
     });
 
-    const safeHrddStrategy = Array.from({ length: toolCount }, (_, index) => {
+    let safeHrddStrategy = Array.from({ length: toolCount }, (_, index) => {
       const value = Array.isArray(hrddStrategy) ? hrddStrategy[index] : undefined;
       return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
     });
@@ -1899,6 +1902,7 @@ getDefaultCostAssumptions() {
   enforceSAQConstraint(toolAllocation) {
     const allocation = [...toolAllocation];
     const currentSAQSum = allocation[4] + allocation[5];
+
     
     if (Math.abs(currentSAQSum - 100) > 0.1) {
       // Distribute 100% between SAQ tools 5 and 6, preserving their ratio if possible
@@ -1922,6 +1926,34 @@ getDefaultCostAssumptions() {
     return Math.abs(sum - 100) <= 0.1; // Allow small floating point errors
   }
 
+  // NEW: Helper function to enforce social audit constraint (tools 3 & 4)
+  enforceSocialAuditConstraint(toolAllocation) {
+    const allocation = [...toolAllocation];
+    const auditA = Number.isFinite(allocation[2]) ? allocation[2] : 0;
+    const auditB = Number.isFinite(allocation[3]) ? allocation[3] : 0;
+    const currentSum = auditA + auditB;
+
+    if (Math.abs(currentSum - 100) > 0.1) {
+      if (currentSum > 0) {
+        const ratio = auditA / currentSum;
+        allocation[2] = ratio * 100;
+        allocation[3] = (1 - ratio) * 100;
+      } else {
+        allocation[2] = 50;
+        allocation[3] = 50;
+      }
+    }
+
+    return allocation;
+  }
+
+  // NEW: Validate social audit constraint
+  validateSocialAuditConstraint(toolAllocation) {
+    const auditA = Number.isFinite(toolAllocation[2]) ? toolAllocation[2] : 0;
+    const auditB = Number.isFinite(toolAllocation[3]) ? toolAllocation[3] : 0;
+    return Math.abs((auditA + auditB) - 100) <= 0.1;
+  }
+
   // Enhanced budget optimization algorithm for the RiskEngine class
 // Replace the existing optimizeBudgetAllocation method with this improved version
 
@@ -1932,7 +1964,7 @@ getDefaultCostAssumptions() {
 // Replace the existing optimizeBudgetAllocation method with this improved version
 
 
-  optimizeBudgetAllocation(
+   optimizeBudgetAllocation(
     supplierCount,
     hourlyRate,
     toolAnnualProgrammeCosts,
@@ -1947,7 +1979,9 @@ getDefaultCostAssumptions() {
     countryVolumes,
     countryRisks,
     focus,
-    enforceSAQConstraint = false
+    enforceSAQConstraint = false,
+    enforceSocialAuditConstraint = false,
+    socialAuditCostReduction = 0
   ) {
     // Check if Panel 6 is enabled
     if (typeof window !== 'undefined' && window.hrddApp && !window.hrddApp.ENABLE_PANEL_6) {
@@ -1982,7 +2016,8 @@ getDefaultCostAssumptions() {
       supplierCount, hourlyRate, toolAnnualProgrammeCosts, toolPerSupplierCosts,
       toolInternalHours, toolRemedyInternalHours, hrddStrategy, transparencyEffectiveness,
       responsivenessStrategy, responsivenessEffectiveness, selectedCountries,
-      countryVolumes, countryRisks, focus, enforceSAQConstraint
+      countryVolumes, countryRisks, focus, enforceSAQConstraint, enforceSocialAuditConstraint,
+      socialAuditCostReduction
     });
 
     const previousOptimizationState =
@@ -2009,13 +2044,24 @@ getDefaultCostAssumptions() {
       return Math.max(0, Number.isFinite(fallback) ? fallback : 0);
     };
 
+   const socialAuditReduction = enforceSocialAuditConstraint
+      ? Math.max(0, Math.min(100, Number(socialAuditCostReduction) || 0))
+      : 0;
+    const socialAuditReductionFactor = enforceSocialAuditConstraint
+      ? Math.max(0, 1 - socialAuditReduction / 100)
+      : 1;
+
     const toolCostPerPercent = Array.from({ length: toolCount }, (_, index) => {
       const programmeCost = getArrayValue(toolAnnualProgrammeCosts, index, 0) / 100;
       const perSupplierCost = getArrayValue(toolPerSupplierCosts, index, 0);
       const detectionHours = getArrayValue(toolInternalHours, index, 0);
       const remedyHours = getArrayValue(toolRemedyInternalHours, index, 0);
-      const variableCost = (perSupplierCost + (detectionHours + remedyHours) * safeHourlyRate) * (safeSupplierCount / 100);
-      return programmeCost + variableCost;
+      const reductionFactor = enforceSocialAuditConstraint && (index === 2 || index === 3)
+        ? socialAuditReductionFactor
+        : 1;
+      const adjustedProgramme = programmeCost * reductionFactor;
+      const variableCost = (perSupplierCost * reductionFactor + (detectionHours * reductionFactor + remedyHours * reductionFactor) * safeHourlyRate) * (safeSupplierCount / 100);
+      return adjustedProgramme + variableCost;
     });
 
     const clampAllocation = (allocation) => Array.from({ length: toolCount }, (_, index) => {
@@ -2036,6 +2082,9 @@ getDefaultCostAssumptions() {
       if (enforceSAQConstraint) {
         normalized = this.enforceSAQConstraint(normalized);
       }
+      if (enforceSocialAuditConstraint) {
+        normalized = this.enforceSocialAuditConstraint(normalized);
+      }
 
       if (!(targetBudget > 0)) {
         return normalized;
@@ -2050,6 +2099,9 @@ getDefaultCostAssumptions() {
         normalized = normalized.map(value => Math.max(0, Math.min(100, value * ratio)));
         if (enforceSAQConstraint) {
           normalized = this.enforceSAQConstraint(normalized);
+        }
+        if (enforceSocialAuditConstraint) {
+          normalized = this.enforceSocialAuditConstraint(normalized);
         }
       }
 
@@ -2150,7 +2202,7 @@ getDefaultCostAssumptions() {
 
     if (improvement < minImprovementThreshold) {
       if (previousResults) {
-        const message = `The existing allocation remains the best option within the current budget. No materially better tool mix was identified despite evaluating ${validSolutionsFound} valid combinations.${enforceSAQConstraint ? ' SAQ constraint was enforced.' : ''}`;
+        const message = `The existing allocation remains the best option within the current budget. No materially better tool mix was identified despite evaluating ${validSolutionsFound} valid combinations.${enforceSAQConstraint ? ' SAQ constraint was enforced.' : ''}${enforceSocialAuditConstraint ? ' Social audit constraint was enforced.' : ''}`;
         const merged = {
           ...previousResults,
           insight: message,
@@ -2158,7 +2210,9 @@ getDefaultCostAssumptions() {
           reOptimizationAttempted: true,
           attemptedValidSolutions: validSolutionsFound,
           optimizationRun: true,
-          saqConstraintEnforced: enforceSAQConstraint
+          saqConstraintEnforced: enforceSAQConstraint,
+          socialAuditConstraintEnforced: enforceSocialAuditConstraint,
+          socialAuditCostReductionApplied: enforceSocialAuditConstraint ? socialAuditReduction : 0
         };
         this.lastOptimizationState = {
           stateHash: currentStateHash,
@@ -2181,7 +2235,7 @@ getDefaultCostAssumptions() {
         currentEffectiveness: baselineEffectiveness,
         optimizedEffectiveness: baselineEffectiveness,
         improvement: 0,
-        insight: `No meaningful improvement found after testing ${evaluations} tool mixes within the current budget of ${targetBudget.toLocaleString()}.${enforceSAQConstraint ? ' SAQ constraint (100% coverage) was enforced.' : ''} Consider updating tool effectiveness assumptions or increasing the budget.`,
+        insight: `No meaningful improvement found after testing ${evaluations} tool mixes within the current budget of ${targetBudget.toLocaleString()}.${enforceSAQConstraint ? ' SAQ constraint (100% coverage) was enforced.' : ''}${enforceSocialAuditConstraint ? ' Social audit constraint (100% coverage with adjusted costs) was enforced.' : ''} Consider updating tool effectiveness assumptions or increasing the budget.`,
         budgetUtilization: targetBudget > 0 ? 100 : 0,
         budgetConstraintMet: true,
         finalBudget: targetBudget,
@@ -2190,7 +2244,9 @@ getDefaultCostAssumptions() {
         validSolutionsFound,
         optimizationRun: true,
         alreadyOptimized: isReOptimization,
-        saqConstraintEnforced: enforceSAQConstraint
+        saqConstraintEnforced: enforceSAQConstraint,
+        socialAuditConstraintEnforced: enforceSocialAuditConstraint,
+        socialAuditCostReductionApplied: enforceSocialAuditConstraint ? socialAuditReduction : 0
       };
 
       this.lastOptimizationState = {
@@ -2216,6 +2272,9 @@ getDefaultCostAssumptions() {
     }
     if (enforceSAQConstraint) {
       insight += ` SAQ constraint enforced: Tools 5 and 6 maintain 100% combined coverage (${bestEvaluation.allocation[4].toFixed(1)}% + ${bestEvaluation.allocation[5].toFixed(1)}%).`;
+    }
+    if (enforceSocialAuditConstraint) {
+      insight += ` Social audit constraint enforced: Tools 3 and 4 maintain 100% combined coverage (${bestEvaluation.allocation[2].toFixed(1)}% + ${bestEvaluation.allocation[3].toFixed(1)}%) with a ${socialAuditReduction.toFixed(0)}% cost reduction.`;
     }
 
     const finalResult = {
@@ -2245,6 +2304,8 @@ getDefaultCostAssumptions() {
       reOptimizationAttempted: isReOptimization,
       attemptedValidSolutions: validSolutionsFound,
       saqConstraintEnforced: enforceSAQConstraint,
+      socialAuditConstraintEnforced: enforceSocialAuditConstraint,
+      socialAuditCostReductionApplied: enforceSocialAuditConstraint ? socialAuditReduction : 0,
       evaluations,
       toolChanges: bestEvaluation.allocation.map((alloc, i) => ({
         tool: this.hrddStrategyLabels[i] || `Tool ${i + 1}`,

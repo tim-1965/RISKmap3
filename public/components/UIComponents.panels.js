@@ -2022,16 +2022,22 @@ export function createCostAnalysisPanel(containerId, options) {
     onToolRemedyInternalHoursChange,
     optimizeBudgetAllocation,
     saqConstraintEnabled = false,
-    onSAQConstraintChange
+    onSAQConstraintChange,
+    socialAuditConstraintEnabled = false,
+    socialAuditCostReduction = 0,
+    onSocialAuditConstraintChange,
+    onSocialAuditCostReductionChange
   } = options;
 
   const mobile = isMobileView();
   const responsive = (mobileValue, desktopValue) => (mobile ? mobileValue : desktopValue);
 
   const enforceSAQConstraint = Boolean(saqConstraintEnabled);
+  const enforceSocialAuditConstraint = Boolean(socialAuditConstraintEnabled);
+  const socialAuditReduction = Math.max(0, Math.min(100, parseFloat(socialAuditCostReduction) || 0));
 
   // Calculate current budget and effectiveness
-  const budgetData = riskEngine.calculateBudgetAnalysis(
+   const budgetData = riskEngine.calculateBudgetAnalysis(
     supplierCount,
     hourlyRate,
     toolAnnualProgrammeCosts,
@@ -2125,7 +2131,9 @@ export function createCostAnalysisPanel(containerId, options) {
         : [],
     toolRemedyInternalHours: Array.isArray(safeBudgetData.toolRemedyInternalHours)
       ? safeBudgetData.toolRemedyInternalHours
-      : sanitizedToolRemedyInternalHours
+      : sanitizedToolRemedyInternalHours,
+    socialAuditConstraintEnabled: enforceSocialAuditConstraint,
+    socialAuditCostReduction: socialAuditReduction
   };
 
   const safeCountries = Array.isArray(countries) ? countries : [];
@@ -2400,18 +2408,29 @@ export function createCostAnalysisPanel(containerId, options) {
 
       <!-- Optimization Analysis -->
       <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 20px; border-radius: 12px; border: 1px solid #bbf7d0; margin-bottom: 24px;">
-        <div style="display: flex; flex-direction: ${responsive('column', 'row')}; justify-content: space-between; align-items: ${responsive('flex-start', 'center')}; gap: 12px; margin-bottom: 16px;">
           <h3 style="font-size: 16px; font-weight: 600; color: #14532d; margin: 0;">Budget Optimization Analysis</h3>
           <div style="display: flex; flex-direction: ${responsive('column', 'row')}; align-items: ${responsive('flex-start', 'center')}; gap: 12px;">
             <label for="saqConstraintToggle" title="When enabled, ensures combined coverage of 'Supplier SAQ with Evidence' and 'Supplier SAQ without Evidence' totals exactly 100% of suppliers" style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: #166534; cursor: pointer; background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: 8px; padding: 8px 12px;">
               <input type="checkbox" id="saqConstraintToggle" ${enforceSAQConstraint ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: #16a34a;">
               <span style="font-weight: 600;">Enforce 100% SAQ Coverage (Tools 5+6)</span>
             </label>
+            <label for="socialAuditConstraintToggle" title="When enabled, enforces a combined 100% coverage across unannounced and announced social audits and applies the cost reduction below." style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: #92400e; cursor: pointer; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 12px;">
+              <input type="checkbox" id="socialAuditConstraintToggle" ${enforceSocialAuditConstraint ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: #f97316;">
+              <span style="font-weight: 600;">Enforce 100% Social Audit Coverage (Tools 3+4)</span>
+            </label>
+            <div style="display: flex; flex-direction: column; gap: 4px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #9a3412;">
+              <label for="socialAuditCostReduction" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                Audit cost reduction
+                <input type="number" id="socialAuditCostReduction" min="0" max="100" step="1" value="${socialAuditReduction}" style="width: 60px; padding: 4px 6px; border: 1px solid #fcd34d; border-radius: 4px; font-size: 12px; text-align: right;">
+                <span>%</span>
+              </label>
+              <span style="font-size: 11px; color: #c2410c;">Applies when social audits are enforced. Reduces programme, supplier, and internal cost assumptions for audit tools.</span>
+            </div>
             <p style="margin: 0; font-size: 12px; color: #14532d; max-width: 360px;">
               The checkbox to enforce 100% SAQ coverage enables you to require all suppliers complete a questionnaire. This is good practice. It enables compliance to start with the supplier confirming it has implemented your policies and procedures; remedy can then be based on requiring the supplier to do what it has already agreed to do.
             </p>
             <button id="runOptimization" style="padding: 8px 16px; background: #16a34a; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;">
-              Run Optimization
+            Run Optimization
             </button>
           </div>
         </div>
@@ -2563,7 +2582,7 @@ export function createCostAnalysisPanel(containerId, options) {
   })();
 
   // Set up event listeners
-  setupCostAnalysisEventListeners({
+   setupCostAnalysisEventListeners({
     onSupplierCountChange,
     onHourlyRateChange,
     onToolAnnualProgrammeCostChange,
@@ -2573,6 +2592,10 @@ export function createCostAnalysisPanel(containerId, options) {
     optimizeBudgetAllocation,
     onSAQConstraintChange,
     saqConstraintEnabled: enforceSAQConstraint,
+    onSocialAuditConstraintChange,
+    onSocialAuditCostReductionChange,
+    socialAuditConstraintEnabled: enforceSocialAuditConstraint,
+    socialAuditCostReduction: socialAuditReduction,
     toolAnnualProgrammeCosts: sanitizedToolAnnualProgrammeCosts,
     toolPerSupplierCosts: sanitizedToolPerSupplierCosts,
     toolInternalHours: sanitizedToolInternalHours,
@@ -2626,6 +2649,15 @@ function renderOptimizationResults(optimization, budgetData, baselineRisk, manag
   const responsive = (mobileValue, desktopValue) => (mobile ? mobileValue : desktopValue);
 
   const saqConstraintEnforced = Boolean(optimization?.saqConstraintEnforced);
+  const socialAuditConstraintEnforced = Boolean(
+    optimization?.socialAuditConstraintEnforced ?? normalizedBudgetData?.socialAuditConstraintEnabled
+  );
+  const socialAuditReductionApplied = Number.isFinite(optimization?.socialAuditCostReductionApplied)
+    ? Math.max(0, Math.min(100, optimization.socialAuditCostReductionApplied))
+    : Number.isFinite(normalizedBudgetData?.socialAuditCostReduction)
+      ? Math.max(0, Math.min(100, normalizedBudgetData.socialAuditCostReduction))
+      : 0;
+
 
   const normalizeRiskValue = (value, fallback = 0) =>
     typeof value === 'number' && Number.isFinite(value) ? value : fallback;
@@ -2715,7 +2747,12 @@ return `
             <span style="font-size: ${responsive('12px', '13px')}; font-weight: 500;">SAQ coverage constraint enforced: SAQ tools 5 and 6 total exactly 100%.</span>
           </div>`
         : ''}
-
+      ${socialAuditConstraintEnforced
+        ? `<div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; padding: ${responsive('10px', '12px')}; color: #92400e; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">🧾</span>
+            <span style="font-size: ${responsive('12px', '13px')}; font-weight: 500;">Social audit coverage constraint enforced: Tools 3 and 4 total 100%. Cost assumptions reduced by ${socialAuditReductionApplied.toFixed(0)}%.</span>
+          </div>`
+        : ''}
       <div style="background: #fef3c7; padding: ${responsive('12px', '16px')}; border-radius: 8px; border: 1px solid #f59e0b;">
         <div style="font-size: 13px; color: #92400e;">
           <strong>Budget Optimization Insight:</strong>
@@ -2794,6 +2831,10 @@ function setupCostAnalysisEventListeners(handlers) {
     optimizeBudgetAllocation,
     onSAQConstraintChange,
     saqConstraintEnabled,
+    onSocialAuditConstraintChange,
+    onSocialAuditCostReductionChange,
+    socialAuditConstraintEnabled,
+    socialAuditCostReduction,
     toolAnnualProgrammeCosts,
     toolPerSupplierCosts,
     toolInternalHours,
@@ -2901,6 +2942,30 @@ function setupCostAnalysisEventListeners(handlers) {
     saqConstraintToggle.addEventListener('change', event => {
       if (typeof onSAQConstraintChange === 'function') {
         onSAQConstraintChange(event.target.checked);
+      }
+    });
+  }
+
+  const socialAuditToggle = document.getElementById('socialAuditConstraintToggle');
+  if (socialAuditToggle) {
+    socialAuditToggle.checked = Boolean(socialAuditConstraintEnabled);
+    socialAuditToggle.addEventListener('change', event => {
+      if (typeof onSocialAuditConstraintChange === 'function') {
+        onSocialAuditConstraintChange(event.target.checked);
+      }
+    });
+  }
+
+  const socialAuditReductionInput = document.getElementById('socialAuditCostReduction');
+  if (socialAuditReductionInput) {
+    const clampedValue = Math.max(0, Math.min(100, parseFloat(socialAuditCostReduction) || 0));
+    socialAuditReductionInput.value = clampedValue;
+    socialAuditReductionInput.addEventListener('input', event => {
+      const parsed = parseFloat(event.target.value);
+      const sanitized = Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 0;
+      event.target.value = sanitized;
+      if (typeof onSocialAuditCostReductionChange === 'function') {
+        onSocialAuditCostReductionChange(sanitized);
       }
     });
   }
@@ -3024,6 +3089,14 @@ function setupCostAnalysisEventListeners(handlers) {
           toolRemedyInternalHours
         );
 
+        const latestSocialAuditConstraint = Boolean(document.getElementById('socialAuditConstraintToggle')?.checked);
+        const latestSocialAuditReduction = readInputValue(
+          'socialAuditCostReduction',
+          0,
+          100,
+          socialAuditCostReduction
+        );
+
         const latestOptimization = optimizeBudgetAllocation();
          if (mapController && typeof mapController.setOptimizedRisks === 'function') {
           const optimizedRiskMap = typeof getOptimizedRiskMap === 'function'
@@ -3031,7 +3104,7 @@ function setupCostAnalysisEventListeners(handlers) {
             : {};
           mapController.setOptimizedRisks(optimizedRiskMap);
           }
-        const latestBudget = riskEngine.calculateBudgetAnalysis(
+        const latestBudgetRaw = riskEngine.calculateBudgetAnalysis(
           latestSupplierCount,
           latestHourlyRate,
           latestAnnualProgrammeCosts,
@@ -3048,6 +3121,11 @@ function setupCostAnalysisEventListeners(handlers) {
           focus
         ) || budgetData;
 
+        const latestBudget = {
+          ...latestBudgetRaw,
+          socialAuditConstraintEnabled: latestSocialAuditConstraint,
+          socialAuditCostReduction: latestSocialAuditReduction
+        };
         const optimizationContainer = document.getElementById('optimizationResults');
         if (optimizationContainer) {
           optimizationContainer.innerHTML = renderOptimizationResults(
