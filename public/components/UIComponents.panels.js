@@ -2451,7 +2451,7 @@ export function createCostAnalysisPanel(containerId, options) {
                   </label>
                 </div>
                 <p style="margin: 0; font-size: 12px; color: #92400e; max-width: ${responsive('100%', '380px')};">
-                  Check the box if you would like to keep your current level of audit coverage (capped at 100%) in the optimisation. Using additional tools, you can reduce audit costs and audit frequency (eg: delivering a 50% or more reduction in the cost of the coverage). Put this percentage into the box or leave at 100% (so no change).
+                  Check the box if you would like to keep your current level of audit coverage (capped at 100%) in the optimisation. Using additional tools, you will reduce audit costs and audit frequency and the internal costs of remedy confirmation (eg: delivering a 50% or more reduction in the cost of the coverage). Put this percentage into the box or leave at 100% (so no change).
                 </p>
               </div>
             </div>
@@ -3266,16 +3266,35 @@ function renderDetailedBudgetBreakdown(
     parseFloat(hourlyRate || safeBudgetData.hourlyRate || 0)
   );
 
-  const buildBreakdown = (allocation) => {
+  const socialAuditConstraintEnforced = Boolean(optimization?.socialAuditConstraintEnforced);
+  const normalizedReduction = Number.isFinite(optimization?.socialAuditCostReductionApplied)
+    ? Math.max(0, Math.min(100, optimization.socialAuditCostReductionApplied))
+    : Number.isFinite(safeBudgetData?.socialAuditCostReduction)
+      ? Math.max(0, Math.min(100, safeBudgetData.socialAuditCostReduction))
+      : 0;
+  const socialAuditReduction = socialAuditConstraintEnforced ? normalizedReduction : 0;
+  const socialAuditReductionFactor = socialAuditConstraintEnforced
+    ? Math.max(0, 1 - socialAuditReduction / 100)
+    : 1;
+  const socialAuditToolIndexes = new Set(
+    riskEngine.hrddStrategyLabels
+      .map((label, index) => ({ label, index }))
+      .filter(({ label }) => typeof label === 'string' && label.toLowerCase().includes('audit'))
+      .map(({ index }) => index)
+  );
+
+  const buildBreakdown = (allocation, applySocialAuditReduction = false) => {
     return riskEngine.hrddStrategyLabels.map((label, index) => {
       const coverage = Number.isFinite(allocation[index]) ? allocation[index] : 0;
       const coverageRatio = Math.max(0, Math.min(1, coverage / 100));
       const suppliersUsingTool = Math.ceil(safeSupplierCount * coverageRatio);
       const annualProgrammeBase = safeAnnualCosts[index] || 0;
-      const annualProgrammeCost = annualProgrammeBase * coverageRatio;
-      const perSupplierCost = safePerSupplierCosts[index] || 0;
-      const detectionHoursPerSupplier = safeInternalHours[index] || 0;
-      const remedyHoursPerSupplier = safeRemedyHours[index] || 0;
+      const applyReduction = applySocialAuditReduction && socialAuditToolIndexes.has(index);
+      const reductionFactor = applyReduction ? socialAuditReductionFactor : 1;
+      const annualProgrammeCost = annualProgrammeBase * coverageRatio * reductionFactor;
+      const perSupplierCost = (safePerSupplierCosts[index] || 0) * reductionFactor;
+      const detectionHoursPerSupplier = (safeInternalHours[index] || 0) * reductionFactor;
+      const remedyHoursPerSupplier = (safeRemedyHours[index] || 0) * reductionFactor;
       const detectionHours = suppliersUsingTool * detectionHoursPerSupplier;
       const remedyHours = suppliersUsingTool * remedyHoursPerSupplier;
       const detectionInternalCost = detectionHours * safeHourlyRate;
@@ -3296,11 +3315,14 @@ function renderDetailedBudgetBreakdown(
         totalInternalCost,
         totalCost
       };
-    });
+   });
   };
 
-  const currentBreakdown = buildBreakdown(currentAllocation);
-  const optimizedBreakdown = buildBreakdown(optimizedToolAllocation);
+  const currentBreakdown = buildBreakdown(currentAllocation, false);
+  const optimizedBreakdown = buildBreakdown(
+    optimizedToolAllocation,
+    socialAuditConstraintEnforced && socialAuditReduction > 0
+  );
 
   const currentToolTotal = currentBreakdown.reduce((sum, tool) => sum + tool.totalCost, 0);
   const optimizedToolTotal = optimizedBreakdown.reduce((sum, tool) => sum + tool.totalCost, 0);
