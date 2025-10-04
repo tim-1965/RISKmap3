@@ -320,28 +320,18 @@ function getResponsiveDimensions(wrapper, defaultWidth, defaultHeight) {
   const rect = wrapper && typeof wrapper.getBoundingClientRect === 'function'
     ? wrapper.getBoundingClientRect()
     : null;
-  const availableWidth = rect && Number.isFinite(rect.width) && rect.width > 0
+  
+  // Use rect dimensions first, then client/offset dimensions
+  const availableWidth = rect && rect.width > 0 
     ? rect.width
     : (wrapper?.clientWidth || wrapper?.offsetWidth || 0);
+    
+  const availableHeight = rect && rect.height > 0
+    ? rect.height  
+    : (wrapper?.clientHeight || wrapper?.offsetHeight || 0);
 
-  const measuredWidth = Number.isFinite(availableWidth) && availableWidth > 0
-    ? availableWidth
-    : (typeof window !== 'undefined' && Number.isFinite(window.innerWidth)
-      ? Math.max(window.innerWidth - 40, MIN_WIDTH)
-      : fallbackWidth);
-
-  const rawWidth = Number.isFinite(measuredWidth) && measuredWidth > 0
-    ? measuredWidth
-    : fallbackWidth;
-  const width = Math.max(rawWidth, MIN_WIDTH);
-
-  const aspectRatio = fallbackWidth > 0
-    ? (fallbackHeight / fallbackWidth)
-    : (defaultHeight && defaultWidth ? defaultHeight / defaultWidth : 0.5);
-  const responsiveHeight = aspectRatio > 0
-    ? Math.round(width * aspectRatio)
-    : fallbackHeight;
-  const height = Math.max(responsiveHeight, MIN_HEIGHT);
+  const width = Math.max(availableWidth || fallbackWidth, MIN_WIDTH);
+  const height = Math.max(availableHeight || fallbackHeight, MIN_HEIGHT);
 
   return { width, height };
 }
@@ -775,24 +765,46 @@ function renderCostAnalysisD3Map(worldData, {
     if (!features.length) throw new Error('No geographic features available');
 
     const featureCollection = { type: 'FeatureCollection', features };
-    const { width: responsiveWidth, height: responsiveHeight } = getResponsiveDimensions(wrapper, width, height);
     
-    // Use the same aspect-preserving approach as other maps
+    // Get container dimensions and calculate proper aspect ratio
+    const rect = wrapper.getBoundingClientRect();
+    const containerWidth = rect.width || width || 960;
+    const containerHeight = rect.height || height || 500;
+    
+    // Use a world map aspect ratio but scale to fill container
+    const mapAspectRatio = 2.0; // Typical world map ratio
+    let svgWidth, svgHeight;
+    
+    // Calculate dimensions to fill container while maintaining aspect ratio
+    if (containerWidth / containerHeight > mapAspectRatio) {
+      // Container is wider than map aspect ratio
+      svgWidth = containerHeight * mapAspectRatio;
+      svgHeight = containerHeight;
+    } else {
+      // Container is taller than map aspect ratio
+      svgWidth = containerWidth;
+      svgHeight = containerWidth / mapAspectRatio;
+    }
+    
     const svg = d3.select(wrapper)
       .append('svg')
-      .attr('viewBox', `0 0 ${responsiveWidth} ${responsiveHeight}`)
-      .attr('preserveAspectRatio', 'xMidYMid meet')  // ← CHANGED from 'none' to 'xMidYMid meet'
+      .attr('viewBox', `0 0 ${svgWidth} ${svgHeight}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet')
       .style('width', '100%')
-      .style('height', 'auto')  // ← CHANGED from '100%' to 'auto' to maintain aspect ratio
+      .style('height', '100%')  // Changed back to 100% to fill container
       .style('border', '1px solid #e2e8f0')
       .style('border-radius', '12px')
       .style('background', '#f8fafc');
 
+    // Use less padding in fitExtent to make the map larger
+    const padding = 8; // Reduced from 16 to make map bigger
     const projection = d3.geoNaturalEarth1()
-      .fitExtent([[16, 16], [responsiveWidth - 16, responsiveHeight - 16]], featureCollection);
+      .fitExtent([[padding, padding], [svgWidth - padding, svgHeight - padding]], featureCollection);
+    
     const path = d3.geoPath(projection);
     const mapGroup = svg.append('g').attr('class', 'map-layer');
 
+    // Rest of the function remains the same...
     mapGroup.append('path')
       .datum({ type: 'Sphere' })
       .attr('d', path)
@@ -800,6 +812,8 @@ function renderCostAnalysisD3Map(worldData, {
       .attr('stroke', '#bae6fd')
       .attr('stroke-width', 0.6)
       .attr('pointer-events', 'none');
+
+    // ... continue with the rest of the existing code
 
     const safeSelectedCountries = Array.isArray(selectedCountries) ? selectedCountries : [];
     const selectedSet = new Set(safeSelectedCountries);
