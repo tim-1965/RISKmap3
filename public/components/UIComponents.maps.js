@@ -777,9 +777,9 @@ function renderCostAnalysisD3Map(worldData, {
    const svg = d3.select(wrapper)
     .append('svg')
     .attr('viewBox', `0 0 ${responsiveWidth} ${responsiveHeight}`)
-    .attr('preserveAspectRatio', 'xMidYMid meet')
+    .attr('preserveAspectRatio', 'none')  // ← CHANGED to allow stretching
     .style('width', '100%')
-    .style('height', '100%')  // ← CHANGED to fill container
+    .style('height', '100%')
     .style('border', '1px solid #e2e8f0')
     .style('border-radius', '12px')
     .style('background', '#f8fafc');
@@ -1128,10 +1128,14 @@ function renderComparisonD3Map(worldData, { container, countries, countryRisks, 
     }
 
     const featureCollection = { type: 'FeatureCollection', features };
-    const { width: responsiveWidth, height: responsiveHeight } = getResponsiveDimensions(wrapper, width, height);
+    // Get actual container dimensions instead of calculated responsive dimensions
+    const rect = wrapper.getBoundingClientRect();
+    const containerWidth = rect.width || width || 960;
+    const containerHeight = rect.height || height || 500;
+
     const svg = d3.select(wrapper)
       .append('svg')
-      .attr('viewBox', `0 0 ${responsiveWidth} ${responsiveHeight}`)
+      .attr('viewBox', `0 0 ${containerWidth} ${containerHeight}`)
       .attr('preserveAspectRatio', 'xMidYMid meet')
       .style('width', '100%')
       .style('height', 'auto')
@@ -1292,7 +1296,7 @@ function renderD3Map(worldData, { container, countries, countryRisks, selectedCo
       .style('background', '#f8fafc');
 
     const projection = d3.geoNaturalEarth1()
-      .fitExtent([[16, 16], [responsiveWidth - 16, responsiveHeight - 16]], featureCollection);
+      .fitExtent([[16, 16], [containerWidth - 16, containerHeight - 16]], featureCollection);
     const path = d3.geoPath(projection);
     const mapGroup = svg.append('g').attr('class', 'map-layer');
 
