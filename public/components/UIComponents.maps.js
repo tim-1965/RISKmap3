@@ -1127,21 +1127,22 @@ function renderComparisonD3Map(worldData, { container, countries, countryRisks, 
       return;
     }
 
-    const featureCollection = { type: 'FeatureCollection', features };
-    // Get actual container dimensions instead of calculated responsive dimensions
     const rect = wrapper.getBoundingClientRect();
-    const containerWidth = rect.width || width || 960;
-    const containerHeight = rect.height || height || 500;
+const containerHeight = rect.height || height || 500;
 
-    const svg = d3.select(wrapper)
-      .append('svg')
-      .attr('viewBox', `0 0 ${containerWidth} ${containerHeight}`)
-      .attr('preserveAspectRatio', 'xMidYMid meet')
-      .style('width', '100%')
-      .style('height', 'auto')
-      .style('border', '1px solid #e5e7eb')
-      .style('border-radius', '8px')
-      .style('background', '#f8fafc');
+// Calculate proper width for world map proportions
+const mapAspectRatio = 2.4;
+const calculatedWidth = Math.round(containerHeight * mapAspectRatio);
+
+const svg = d3.select(wrapper)
+  .append('svg')
+  .attr('viewBox', `0 0 ${calculatedWidth} ${containerHeight}`)
+  .attr('preserveAspectRatio', 'xMidYMid meet')
+  .style('width', '100%')
+  .style('height', '100%')
+  .style('border', '1px solid #e2e8f0')
+  .style('border-radius', '12px')
+  .style('background', '#f8fafc');
 
     const projection = d3.geoNaturalEarth1()
       .fitExtent([[16, 16], [responsiveWidth - 16, responsiveHeight - 16]], featureCollection);
@@ -1296,7 +1297,7 @@ function renderD3Map(worldData, { container, countries, countryRisks, selectedCo
       .style('background', '#f8fafc');
 
     const projection = d3.geoNaturalEarth1()
-      .fitExtent([[16, 16], [containerWidth - 16, containerHeight - 16]], featureCollection);
+      .fitExtent([[16, 16], [calculatedWidth - 16, containerHeight - 16]], featureCollection);
     const path = d3.geoPath(projection);
     const mapGroup = svg.append('g').attr('class', 'map-layer');
 
