@@ -2021,6 +2021,7 @@ export function createCostAnalysisPanel(containerId, options) {
     onToolInternalHoursChange,
     onToolRemedyInternalHoursChange,
     optimizeBudgetAllocation,
+    onSAQConstraintChange,
     saqConstraintEnabled = false,
     socialAuditConstraintEnabled = true,
     socialAuditCostReduction = 50,
