@@ -2022,11 +2022,12 @@ export function createCostAnalysisPanel(containerId, options) {
     onToolRemedyInternalHoursChange,
     optimizeBudgetAllocation,
     saqConstraintEnabled = false,
-    onSAQConstraintChange,
-    socialAuditConstraintEnabled = false,
-    socialAuditCostReduction = 0,
+    socialAuditConstraintEnabled = true,
+    socialAuditCostReduction = 50,
     onSocialAuditConstraintChange,
-    onSocialAuditCostReductionChange
+    onSocialAuditCostReductionChange,
+    shouldAutoRunOptimization = false,
+    lastOptimizationResult = null
   } = options;
 
   const mobile = isMobileView();
@@ -2064,10 +2065,23 @@ export function createCostAnalysisPanel(containerId, options) {
     totalBudget: 0,
     costPerSupplier: 0,
     currentAllocation: Array.isArray(hrddStrategy) ? [...hrddStrategy] : [],
-    toolRemedyInternalHours: Array.isArray(toolRemedyInternalHours)
+     toolRemedyInternalHours: Array.isArray(toolRemedyInternalHours)
       ? [...toolRemedyInternalHours]
       : []
   };
+
+  const getAuditCoverage = (allocation) => {
+    if (!Array.isArray(allocation)) return 0;
+    const announced = Number.isFinite(allocation[2]) ? Math.max(0, allocation[2]) : 0;
+    const unannounced = Number.isFinite(allocation[3]) ? Math.max(0, allocation[3]) : 0;
+    return announced + unannounced;
+  };
+
+  const currentAuditCoverage = getAuditCoverage(hrddStrategy);
+  const fallbackAuditCoverage = getAuditCoverage(safeBudgetData.currentAllocation);
+  const auditCoverageTarget = enforceSocialAuditConstraint
+    ? Math.max(0, Math.min(100, currentAuditCoverage > 0 ? currentAuditCoverage : fallbackAuditCoverage))
+    : null;
 
   const strategyCount = Array.isArray(riskEngine?.hrddStrategyLabels)
     ? riskEngine.hrddStrategyLabels.length
@@ -2133,7 +2147,10 @@ export function createCostAnalysisPanel(containerId, options) {
       ? safeBudgetData.toolRemedyInternalHours
       : sanitizedToolRemedyInternalHours,
     socialAuditConstraintEnabled: enforceSocialAuditConstraint,
-    socialAuditCostReduction: socialAuditReduction
+    socialAuditCostReduction: socialAuditReduction,
+    socialAuditCoverageTarget: Number.isFinite(auditCoverageTarget)
+      ? Math.max(0, Math.min(100, auditCoverageTarget))
+      : null
   };
 
   const safeCountries = Array.isArray(countries) ? countries : [];
@@ -2409,28 +2426,36 @@ export function createCostAnalysisPanel(containerId, options) {
       <!-- Optimization Analysis -->
       <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 20px; border-radius: 12px; border: 1px solid #bbf7d0; margin-bottom: 24px;">
           <h3 style="font-size: 16px; font-weight: 600; color: #14532d; margin: 0;">Budget Optimization Analysis</h3>
-          <div style="display: flex; flex-direction: ${responsive('column', 'row')}; align-items: ${responsive('flex-start', 'center')}; gap: 12px;">
-            <label for="saqConstraintToggle" title="When enabled, ensures combined coverage of 'Supplier SAQ with Evidence' and 'Supplier SAQ without Evidence' totals exactly 100% of suppliers" style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: #166534; cursor: pointer; background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: 8px; padding: 8px 12px;">
-              <input type="checkbox" id="saqConstraintToggle" ${enforceSAQConstraint ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: #16a34a;">
-              <span style="font-weight: 600;">Enforce 100% SAQ Coverage (Tools 5+6)</span>
-            </label>
-            <label for="socialAuditConstraintToggle" title="When enabled, enforces a combined 100% coverage across unannounced and announced social audits and applies the cost reduction below." style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: #92400e; cursor: pointer; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 12px;">
-              <input type="checkbox" id="socialAuditConstraintToggle" ${enforceSocialAuditConstraint ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: #f97316;">
-              <span style="font-weight: 600;">Enforce 100% Social Audit Coverage (Tools 3+4)</span>
-            </label>
-            <div style="display: flex; flex-direction: column; gap: 4px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #9a3412;">
-              <label for="socialAuditCostReduction" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
-                Audit cost reduction
-                <input type="number" id="socialAuditCostReduction" min="0" max="100" step="1" value="${socialAuditReduction}" style="width: 60px; padding: 4px 6px; border: 1px solid #fcd34d; border-radius: 4px; font-size: 12px; text-align: right;">
-                <span>%</span>
-              </label>
-              <span style="font-size: 11px; color: #c2410c;">Applies when social audits are enforced. Reduces programme, supplier, and internal cost assumptions for audit tools.</span>
+          <div style="display: flex; flex-direction: ${responsive('column', 'row')}; align-items: ${responsive('stretch', 'flex-start')}; gap: ${responsive('12px', '16px')};">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: ${responsive('12px', '14px')}; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: ${responsive('12px', '16px')};">
+              <div style="display: flex; flex-direction: ${responsive('column', 'row')}; align-items: ${responsive('flex-start', 'center')}; gap: ${responsive('8px', '12px')};">
+                <label for="saqConstraintToggle" title="When enabled, ensures combined coverage of 'Supplier SAQ with Evidence' and 'Supplier SAQ without Evidence' totals exactly 100% of suppliers" style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: #166534; cursor: pointer; background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: 8px; padding: 8px 12px;">
+                  <input type="checkbox" id="saqConstraintToggle" ${enforceSAQConstraint ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: #16a34a;">
+                  <span style="font-weight: 600;">Enforce 100% SAQ Coverage (Tools 5+6)</span>
+                </label>
+                <p style="margin: 0; font-size: 12px; color: #14532d; max-width: ${responsive('100%', '360px')};">
+                  The checkbox to enforce 100% SAQ coverage enables you to require all suppliers complete a questionnaire. This is good practice. It enables compliance to start with the supplier confirming it has implemented your policies and procedures; remedy can then be based on requiring the supplier to do what it has already agreed to do.
+                </p>
+              </div>
+              <div style="display: flex; flex-direction: ${responsive('column', 'row')}; align-items: ${responsive('flex-start', 'center')}; gap: ${responsive('10px', '12px')};">
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                  <label for="socialAuditConstraintToggle" title="When enabled, keeps the combined coverage for unannounced and announced social audits at the current level (capped at 100%) and applies the cost reduction below." style="display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: #92400e; cursor: pointer; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 12px;">
+                    <input type="checkbox" id="socialAuditConstraintToggle" ${enforceSocialAuditConstraint ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: #f97316;">
+                    <span style="font-weight: 600;">Keep current social audit coverage (Tools 3+4${Number.isFinite(auditCoverageTarget) ? ` · ${Math.max(0, Math.min(100, auditCoverageTarget)).toFixed(0)}%` : ''})</span>
+                  </label>
+                  <label for="socialAuditCostReduction" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #9a3412; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 6px 10px;">
+                    <span>Audit cost reduction</span>
+                    <input type="number" id="socialAuditCostReduction" min="0" max="100" step="1" value="${socialAuditReduction}" style="width: 60px; padding: 4px 6px; border: 1px solid #fcd34d; border-radius: 4px; font-size: 12px; text-align: right; background: white;">
+                    <span>%</span>
+                  </label>
+                </div>
+                <p style="margin: 0; font-size: 12px; color: #92400e; max-width: ${responsive('100%', '380px')};">
+                  Check the box if you would like to keep your current level of audit coverage (capped at 100%) in the optimisation. Using additional tools, you can reduce audit costs and audit frequency (eg: delivering a 50% or more reduction in the cost of the coverage). Put this percentage into the box or leave at 100% (so no change).
+                </p>
+              </div>
             </div>
-            <p style="margin: 0; font-size: 12px; color: #14532d; max-width: 360px;">
-              The checkbox to enforce 100% SAQ coverage enables you to require all suppliers complete a questionnaire. This is good practice. It enables compliance to start with the supplier confirming it has implemented your policies and procedures; remedy can then be based on requiring the supplier to do what it has already agreed to do.
-            </p>
-            <button id="runOptimization" style="padding: 8px 16px; background: #16a34a; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;">
-            Run Optimization
+            <button id="runOptimization" style="padding: 8px 16px; background: #16a34a; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; align-self: ${responsive('stretch', 'flex-start')};">
+              Run Optimization
             </button>
           </div>
         </div>
@@ -2613,6 +2638,7 @@ export function createCostAnalysisPanel(containerId, options) {
     baselineRisk,
     managedRisk,
     budgetData: normalizedBudgetData,
+    auditCoverageTarget,
     mapController,
     getOptimizedRiskMap
   });
@@ -2657,7 +2683,14 @@ function renderOptimizationResults(optimization, budgetData, baselineRisk, manag
     : Number.isFinite(normalizedBudgetData?.socialAuditCostReduction)
       ? Math.max(0, Math.min(100, normalizedBudgetData.socialAuditCostReduction))
       : 0;
-
+  const socialAuditCoverageTarget = Number.isFinite(optimization?.socialAuditCoverageTarget)
+    ? Math.max(0, Math.min(100, optimization.socialAuditCoverageTarget))
+    : Number.isFinite(normalizedBudgetData?.socialAuditCoverageTarget)
+      ? Math.max(0, Math.min(100, normalizedBudgetData.socialAuditCoverageTarget))
+      : null;
+  const socialAuditCoverageText = socialAuditCoverageTarget !== null
+    ? `${socialAuditCoverageTarget.toFixed(0)}%`
+    : 'current level';
 
   const normalizeRiskValue = (value, fallback = 0) =>
     typeof value === 'number' && Number.isFinite(value) ? value : fallback;
@@ -2750,7 +2783,7 @@ return `
       ${socialAuditConstraintEnforced
         ? `<div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; padding: ${responsive('10px', '12px')}; color: #92400e; display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 18px;">🧾</span>
-            <span style="font-size: ${responsive('12px', '13px')}; font-weight: 500;">Social audit coverage constraint enforced: Tools 3 and 4 total 100%. Cost assumptions reduced by ${socialAuditReductionApplied.toFixed(0)}%.</span>
+            <span style="font-size: ${responsive('12px', '13px')}; font-weight: 500;">Social audit coverage constraint enforced: Tools 3 and 4 total ${socialAuditCoverageText}. Cost assumptions reduced by ${socialAuditReductionApplied.toFixed(0)}%.</span>
           </div>`
         : ''}
       <div style="background: #fef3c7; padding: ${responsive('12px', '16px')}; border-radius: 8px; border: 1px solid #f59e0b;">
@@ -2852,6 +2885,7 @@ function setupCostAnalysisEventListeners(handlers) {
     baselineRisk,
     managedRisk,
     budgetData,
+    auditCoverageTarget,
     mapController,
     getOptimizedRiskMap
   } = handlers;
@@ -3124,7 +3158,16 @@ function setupCostAnalysisEventListeners(handlers) {
         const latestBudget = {
           ...latestBudgetRaw,
           socialAuditConstraintEnabled: latestSocialAuditConstraint,
-          socialAuditCostReduction: latestSocialAuditReduction
+          socialAuditCostReduction: latestSocialAuditReduction,
+          socialAuditCoverageTarget: latestSocialAuditConstraint
+            ? (Number.isFinite(latestOptimization?.socialAuditCoverageTarget)
+              ? Math.max(0, Math.min(100, latestOptimization.socialAuditCoverageTarget))
+              : Number.isFinite(latestBudgetRaw?.socialAuditCoverageTarget)
+                ? Math.max(0, Math.min(100, latestBudgetRaw.socialAuditCoverageTarget))
+                : Number.isFinite(auditCoverageTarget)
+                  ? Math.max(0, Math.min(100, auditCoverageTarget))
+                  : null)
+            : null
         };
         const optimizationContainer = document.getElementById('optimizationResults');
         if (optimizationContainer) {

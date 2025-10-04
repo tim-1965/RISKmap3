@@ -56,8 +56,10 @@ export class AppController {
             toolRemedyInternalHours: [0, 10, 10, 6, 2, 2], // Internal work hours per supplier per year to apply each tool's findings
 
             saqConstraintEnabled: false, // Default: unchecked (preserves current behavior)
-            socialAuditConstraintEnabled: false, // Default: unchecked (no enforced audit coverage)
-            socialAuditCostReduction: 0 // Percentage reduction applied when audit constraint enabled
+            socialAuditConstraintEnabled: true, // Default: keep current audit coverage capped at 100%
+            socialAuditCostReduction: 50, // Percentage reduction applied when audit constraint enabled
+            shouldAutoRunOptimization: false,
+            lastOptimizationResult: null
           }
         : {}),
 
@@ -486,10 +488,11 @@ onFocusChange(next) {
     }, 200);
   }
 
-  onSupplierCountChange(count) {
+   onSupplierCountChange(count) {
     if (!ENABLE_PANEL_6) return;
     this.state.supplierCount = Math.max(1, Math.floor(parseFloat(count) || 1));
     this.state.isDirty = true;
+    this.state.lastOptimizationResult = null;
     this.updateUI();
   }
 
@@ -497,6 +500,7 @@ onFocusChange(next) {
     if (!ENABLE_PANEL_6) return;
     this.state.hourlyRate = Math.max(0, parseFloat(rate) || 0);
     this.state.isDirty = true;
+    this.state.lastOptimizationResult = null;
     this.updateUI();
   }
 
@@ -505,6 +509,7 @@ onFocusChange(next) {
   if (toolIndex >= 0 && toolIndex < this.state.toolAnnualProgrammeCosts.length) {
     this.state.toolAnnualProgrammeCosts[toolIndex] = Math.max(0, parseFloat(cost) || 0);
     this.state.isDirty = true;
+    this.state.lastOptimizationResult = null;
     this.updateUI();
   }
 }
@@ -514,6 +519,7 @@ onToolPerSupplierCostChange(toolIndex, cost) {
   if (toolIndex >= 0 && toolIndex < this.state.toolPerSupplierCosts.length) {
     this.state.toolPerSupplierCosts[toolIndex] = Math.max(0, parseFloat(cost) || 0);
     this.state.isDirty = true;
+    this.state.lastOptimizationResult = null;
     this.updateUI();
   }
 }
@@ -523,6 +529,7 @@ onToolInternalHoursChange(toolIndex, hours) {
   if (toolIndex >= 0 && toolIndex < this.state.toolInternalHours.length) {
     this.state.toolInternalHours[toolIndex] = Math.max(0, parseFloat(hours) || 0);
     this.state.isDirty = true;
+    this.state.lastOptimizationResult = null;
     this.updateUI();
   }
 }
@@ -532,6 +539,7 @@ onToolRemedyInternalHoursChange(toolIndex, hours) {
   if (toolIndex >= 0 && toolIndex < this.state.toolRemedyInternalHours.length) {
     this.state.toolRemedyInternalHours[toolIndex] = Math.max(0, parseFloat(hours) || 0);
     this.state.isDirty = true;
+    this.state.lastOptimizationResult = null;
     this.updateUI();
   }
 }
@@ -541,6 +549,7 @@ onSAQConstraintChange(enabled) {
   if (!ENABLE_PANEL_6) return;
   this.state.saqConstraintEnabled = Boolean(enabled);
   this.state.isDirty = true;
+  this.state.lastOptimizationResult = null;
   this.updateUI();
 }
 
@@ -549,6 +558,7 @@ onSocialAuditConstraintChange(enabled) {
   if (!ENABLE_PANEL_6) return;
   this.state.socialAuditConstraintEnabled = Boolean(enabled);
   this.state.isDirty = true;
+  this.state.lastOptimizationResult = null;
   this.updateUI();
 }
 
@@ -559,14 +569,14 @@ onSocialAuditCostReductionChange(percentage) {
   const clamped = Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 0;
   this.state.socialAuditCostReduction = clamped;
   this.state.isDirty = true;
+  this.state.lastOptimizationResult = null;
   this.updateUI();
 }
 
  optimizeBudgetAllocation() {
   if (!ENABLE_PANEL_6) return null;
 
-  // NEW: Pass SAQ constraint parameter to optimization
-  return riskEngine.optimizeBudgetAllocation(
+  const result = riskEngine.optimizeBudgetAllocation(
     this.state.supplierCount,
     this.state.hourlyRate,
     this.state.toolAnnualProgrammeCosts,
@@ -581,10 +591,14 @@ onSocialAuditCostReductionChange(percentage) {
     this.state.countryVolumes,
     this.state.countryRisks,
     this.state.focus,
-    this.state.saqConstraintEnabled, // NEW: SAQ constraint parameter
+    this.state.saqConstraintEnabled,
     this.state.socialAuditConstraintEnabled,
     this.state.socialAuditCostReduction
     );
+
+    this.state.lastOptimizationResult = result || null;
+    this.state.shouldAutoRunOptimization = false;
+    return result;
   }
 
   /* ------------------------------- UI -------------------------------- */
@@ -593,6 +607,9 @@ onSocialAuditCostReductionChange(percentage) {
     const maxPanel = ENABLE_PANEL_6 ? 6 : 5;
     if (panel >= 1 && panel <= maxPanel) {
       this.state.currentPanel = panel;
+      if (ENABLE_PANEL_6) {
+        this.state.shouldAutoRunOptimization = panel === 6;
+      }
       this.render();
     }
   }
@@ -1428,8 +1445,11 @@ const statusBar = `
           socialAuditConstraintEnabled: this.state.socialAuditConstraintEnabled,
           socialAuditCostReduction: this.state.socialAuditCostReduction,
           onSocialAuditConstraintChange: this.onSocialAuditConstraintChange,
-          onSocialAuditCostReductionChange: this.onSocialAuditCostReductionChange
+          onSocialAuditCostReductionChange: this.onSocialAuditCostReductionChange,
+          shouldAutoRunOptimization: this.state.shouldAutoRunOptimization,
+          lastOptimizationResult: this.state.lastOptimizationResult
         });
+        this.state.shouldAutoRunOptimization = false;
       });
 
       return html;

@@ -1927,20 +1927,22 @@ getDefaultCostAssumptions() {
   }
 
   // NEW: Helper function to enforce social audit constraint (tools 3 & 4)
-  enforceSocialAuditConstraint(toolAllocation) {
+   enforceSocialAuditConstraint(toolAllocation, targetCoverage = 100) {
     const allocation = [...toolAllocation];
     const auditA = Number.isFinite(allocation[2]) ? allocation[2] : 0;
     const auditB = Number.isFinite(allocation[3]) ? allocation[3] : 0;
     const currentSum = auditA + auditB;
 
-    if (Math.abs(currentSum - 100) > 0.1) {
+    const safeTarget = Math.max(0, Math.min(100, Number.isFinite(targetCoverage) ? targetCoverage : 0));
+
+    if (Math.abs(currentSum - safeTarget) > 0.1) {
       if (currentSum > 0) {
         const ratio = auditA / currentSum;
-        allocation[2] = ratio * 100;
-        allocation[3] = (1 - ratio) * 100;
+        allocation[2] = ratio * safeTarget;
+        allocation[3] = (1 - ratio) * safeTarget;
       } else {
-        allocation[2] = 50;
-        allocation[3] = 50;
+        allocation[2] = safeTarget / 2;
+        allocation[3] = safeTarget / 2;
       }
     }
 
@@ -1948,10 +1950,11 @@ getDefaultCostAssumptions() {
   }
 
   // NEW: Validate social audit constraint
-  validateSocialAuditConstraint(toolAllocation) {
+  validateSocialAuditConstraint(toolAllocation, targetCoverage = 100) {
     const auditA = Number.isFinite(toolAllocation[2]) ? toolAllocation[2] : 0;
     const auditB = Number.isFinite(toolAllocation[3]) ? toolAllocation[3] : 0;
-    return Math.abs((auditA + auditB) - 100) <= 0.1;
+    const safeTarget = Math.max(0, Math.min(100, Number.isFinite(targetCoverage) ? targetCoverage : 0));
+    return Math.abs((auditA + auditB) - safeTarget) <= 0.1;
   }
 
   // Enhanced budget optimization algorithm for the RiskEngine class
@@ -1981,7 +1984,7 @@ getDefaultCostAssumptions() {
     focus,
     enforceSAQConstraint = false,
     enforceSocialAuditConstraint = false,
-    socialAuditCostReduction = 0
+    socialAuditCostReduction = 50
   ) {
     // Check if Panel 6 is enabled
     if (typeof window !== 'undefined' && window.hrddApp && !window.hrddApp.ENABLE_PANEL_6) {
@@ -2044,7 +2047,25 @@ getDefaultCostAssumptions() {
       return Math.max(0, Number.isFinite(fallback) ? fallback : 0);
     };
 
-   const socialAuditReduction = enforceSocialAuditConstraint
+    const computeAuditCoverage = (allocation) => {
+      if (!Array.isArray(allocation)) return 0;
+      const announced = Number.isFinite(allocation[2]) ? Math.max(0, allocation[2]) : 0;
+      const unannounced = Number.isFinite(allocation[3]) ? Math.max(0, allocation[3]) : 0;
+      return announced + unannounced;
+    };
+
+    const baseAuditCoverage = computeAuditCoverage(hrddStrategy);
+    const fallbackAuditCoverage = computeAuditCoverage(currentBudget.currentAllocation);
+    const auditConstraintTarget = enforceSocialAuditConstraint
+      ? Math.max(0, Math.min(100, baseAuditCoverage > 0 ? baseAuditCoverage : fallbackAuditCoverage))
+      : null;
+    const auditCoverageForSummary = enforceSocialAuditConstraint
+      ? Math.max(0, Math.min(100, Number.isFinite(auditConstraintTarget)
+        ? auditConstraintTarget
+        : fallbackAuditCoverage))
+      : null;
+
+    const socialAuditReduction = enforceSocialAuditConstraint
       ? Math.max(0, Math.min(100, Number(socialAuditCostReduction) || 0))
       : 0;
     const socialAuditReductionFactor = enforceSocialAuditConstraint
@@ -2083,7 +2104,7 @@ getDefaultCostAssumptions() {
         normalized = this.enforceSAQConstraint(normalized);
       }
       if (enforceSocialAuditConstraint) {
-        normalized = this.enforceSocialAuditConstraint(normalized);
+        normalized = this.enforceSocialAuditConstraint(normalized, auditConstraintTarget);
       }
 
       if (!(targetBudget > 0)) {
@@ -2101,7 +2122,7 @@ getDefaultCostAssumptions() {
           normalized = this.enforceSAQConstraint(normalized);
         }
         if (enforceSocialAuditConstraint) {
-          normalized = this.enforceSocialAuditConstraint(normalized);
+          normalized = this.enforceSocialAuditConstraint(normalized, auditConstraintTarget);
         }
       }
 
@@ -2198,11 +2219,17 @@ getDefaultCostAssumptions() {
 
     const optimizedDetails = bestEvaluation.details;
     const optimizedEffectiveness = bestEvaluation.effectiveness;
-    const improvement = optimizedEffectiveness - baselineEffectiveness;
+     const improvement = optimizedEffectiveness - baselineEffectiveness;
+
+    const auditConstraintSummary = enforceSocialAuditConstraint
+      ? (Number.isFinite(auditCoverageForSummary)
+        ? ` Social audit constraint was enforced (Tools 3 and 4 held at ${auditCoverageForSummary.toFixed(1)}%).`
+        : ' Social audit constraint was enforced (Tools 3 and 4 held at their current combined coverage).')
+      : '';
 
     if (improvement < minImprovementThreshold) {
       if (previousResults) {
-        const message = `The existing allocation remains the best option within the current budget. No materially better tool mix was identified despite evaluating ${validSolutionsFound} valid combinations.${enforceSAQConstraint ? ' SAQ constraint was enforced.' : ''}${enforceSocialAuditConstraint ? ' Social audit constraint was enforced.' : ''}`;
+        const message = `The existing allocation remains the best option within the current budget. No materially better tool mix was identified despite evaluating ${validSolutionsFound} valid combinations.${enforceSAQConstraint ? ' SAQ constraint was enforced.' : ''}${auditConstraintSummary}`;
         const merged = {
           ...previousResults,
           insight: message,
@@ -2212,7 +2239,8 @@ getDefaultCostAssumptions() {
           optimizationRun: true,
           saqConstraintEnforced: enforceSAQConstraint,
           socialAuditConstraintEnforced: enforceSocialAuditConstraint,
-          socialAuditCostReductionApplied: enforceSocialAuditConstraint ? socialAuditReduction : 0
+          socialAuditCostReductionApplied: enforceSocialAuditConstraint ? socialAuditReduction : 0,
+          socialAuditCoverageTarget: enforceSocialAuditConstraint ? auditCoverageForSummary : null
         };
         this.lastOptimizationState = {
           stateHash: currentStateHash,
@@ -2235,7 +2263,7 @@ getDefaultCostAssumptions() {
         currentEffectiveness: baselineEffectiveness,
         optimizedEffectiveness: baselineEffectiveness,
         improvement: 0,
-        insight: `No meaningful improvement found after testing ${evaluations} tool mixes within the current budget of ${targetBudget.toLocaleString()}.${enforceSAQConstraint ? ' SAQ constraint (100% coverage) was enforced.' : ''}${enforceSocialAuditConstraint ? ' Social audit constraint (100% coverage with adjusted costs) was enforced.' : ''} Consider updating tool effectiveness assumptions or increasing the budget.`,
+         insight: `No meaningful improvement found after testing ${evaluations} tool mixes within the current budget of ${targetBudget.toLocaleString()}.${enforceSAQConstraint ? ' SAQ constraint (100% coverage) was enforced.' : ''}${auditConstraintSummary} Consider updating tool effectiveness assumptions or increasing the budget.`,
         budgetUtilization: targetBudget > 0 ? 100 : 0,
         budgetConstraintMet: true,
         finalBudget: targetBudget,
@@ -2246,7 +2274,8 @@ getDefaultCostAssumptions() {
         alreadyOptimized: isReOptimization,
         saqConstraintEnforced: enforceSAQConstraint,
         socialAuditConstraintEnforced: enforceSocialAuditConstraint,
-        socialAuditCostReductionApplied: enforceSocialAuditConstraint ? socialAuditReduction : 0
+        socialAuditCostReductionApplied: enforceSocialAuditConstraint ? socialAuditReduction : 0,
+        socialAuditCoverageTarget: enforceSocialAuditConstraint ? auditCoverageForSummary : null
       };
 
       this.lastOptimizationState = {
@@ -2273,8 +2302,11 @@ getDefaultCostAssumptions() {
     if (enforceSAQConstraint) {
       insight += ` SAQ constraint enforced: Tools 5 and 6 maintain 100% combined coverage (${bestEvaluation.allocation[4].toFixed(1)}% + ${bestEvaluation.allocation[5].toFixed(1)}%).`;
     }
-    if (enforceSocialAuditConstraint) {
-      insight += ` Social audit constraint enforced: Tools 3 and 4 maintain 100% combined coverage (${bestEvaluation.allocation[2].toFixed(1)}% + ${bestEvaluation.allocation[3].toFixed(1)}%) with a ${socialAuditReduction.toFixed(0)}% cost reduction.`;
+   if (enforceSocialAuditConstraint) {
+      const combinedAuditText = Number.isFinite(auditCoverageForSummary)
+        ? `${auditCoverageForSummary.toFixed(1)}% combined coverage`
+        : 'their current combined coverage';
+      insight += ` Social audit constraint enforced: Tools 3 and 4 maintain ${combinedAuditText} (${bestEvaluation.allocation[2].toFixed(1)}% + ${bestEvaluation.allocation[3].toFixed(1)}%) with a ${socialAuditReduction.toFixed(0)}% cost reduction.`;
     }
 
     const finalResult = {
@@ -2306,6 +2338,7 @@ getDefaultCostAssumptions() {
       saqConstraintEnforced: enforceSAQConstraint,
       socialAuditConstraintEnforced: enforceSocialAuditConstraint,
       socialAuditCostReductionApplied: enforceSocialAuditConstraint ? socialAuditReduction : 0,
+      socialAuditCoverageTarget: enforceSocialAuditConstraint ? auditCoverageForSummary : null,
       evaluations,
       toolChanges: bestEvaluation.allocation.map((alloc, i) => ({
         tool: this.hrddStrategyLabels[i] || `Tool ${i + 1}`,
