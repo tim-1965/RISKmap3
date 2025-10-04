@@ -41,23 +41,25 @@ export class AppController {
         ? [...riskEngine.defaultWeights]
         : [20, 20, 20, 20, 20],
 
-      // Panel 6 cost analysis state (only if enabled)
-        ...(ENABLE_PANEL_6 ? {
-        supplierCount: 500, // Default number of suppliers
-        hourlyRate: 40, // Default cost per man hour in USD
+       // Panel 6 cost analysis state (only if enabled)
+      ...(ENABLE_PANEL_6
+        ? {
+            supplierCount: 500, // Default number of suppliers
+            hourlyRate: 40, // Default cost per man hour in USD
 
-      // Panel 3 Tools - Three cost components each
-        toolAnnualProgrammeCosts: [12000, 0, 0, 40000, 0, 0], // Annual programme cost for all suppliers
-        toolPerSupplierCosts: [120, 0, 1000, 0, 0, 0], // Additional per supplier annual cost
-        toolInternalHours: [6, 20, 20, 6, 2, 1], // Internal work hours per supplier per year
+            // Panel 3 Tools - Three cost components each
+            toolAnnualProgrammeCosts: [12000, 0, 0, 40000, 0, 0], // Annual programme cost for all suppliers
+            toolPerSupplierCosts: [120, 0, 1000, 0, 0, 0], // Additional per supplier annual cost
+            toolInternalHours: [6, 20, 20, 6, 2, 1], // Internal work hours per supplier per year
 
-      // Panel 4 Remedy utilisation - Internal hours per tool
-      toolRemedyInternalHours: [0, 10, 10, 6, 2, 2], // Internal work hours per supplier per year to apply each tool's findings
+            // Panel 4 Remedy utilisation - Internal hours per tool
+            toolRemedyInternalHours: [0, 10, 10, 6, 2, 2], // Internal work hours per supplier per year to apply each tool's findings
 
-       saqConstraintEnabled: false, // Default: unchecked (preserves current behavior)
-        socialAuditConstraintEnabled: false, // Default: unchecked (no enforced audit coverage)
-        socialAuditCostReduction: 0, // Percentage reduction applied when audit constraint enabled
-        } : {}),
+            saqConstraintEnabled: false, // Default: unchecked (preserves current behavior)
+            socialAuditConstraintEnabled: false, // Default: unchecked (no enforced audit coverage)
+            socialAuditCostReduction: 0 // Percentage reduction applied when audit constraint enabled
+          }
+        : {}),
 
       // Selection + volumes
       selectedCountries: [],
@@ -125,7 +127,7 @@ export class AppController {
 
     this.calculateAllRisks = this.calculateAllRisks.bind(this);
     this.calculateBaselineRisk = this.calculateBaselineRisk.bind(this);
-   this.calculateManagedRisk = this.calculateManagedRisk.bind(this);
+    this.calculateManagedRisk = this.calculateManagedRisk.bind(this);
 
     this.generatePDFReport = this.generatePDFReport.bind(this);
     this.exportConfiguration = this.exportConfiguration.bind(this);
@@ -142,21 +144,19 @@ export class AppController {
     this.handleWheelScroll = this.handleWheelScroll.bind(this);
 
     // Panel 6 handlers (only if enabled)
-    if (ENABLE_PANEL_6) {
+     if (ENABLE_PANEL_6) {
       this.onSupplierCountChange = this.onSupplierCountChange.bind(this);
       this.onHourlyRateChange = this.onHourlyRateChange.bind(this);
       this.onToolAnnualProgrammeCostChange = this.onToolAnnualProgrammeCostChange.bind(this);
       this.onToolPerSupplierCostChange = this.onToolPerSupplierCostChange.bind(this);
       this.onToolInternalHoursChange = this.onToolInternalHoursChange.bind(this);
-       this.onToolRemedyInternalHoursChange = this.onToolRemedyInternalHoursChange.bind(this);
-      // NEW: SAQ Constraint handler
+      this.onToolRemedyInternalHoursChange = this.onToolRemedyInternalHoursChange.bind(this);
       this.onSAQConstraintChange = this.onSAQConstraintChange.bind(this);
-      // NEW: Social audit constraint handlers
       this.onSocialAuditConstraintChange = this.onSocialAuditConstraintChange.bind(this);
       this.onSocialAuditCostReductionChange = this.onSocialAuditCostReductionChange.bind(this);
     }
 
-this.optimizeBudgetAllocation = this.optimizeBudgetAllocation.bind(this);
+    this.optimizeBudgetAllocation = this.optimizeBudgetAllocation.bind(this);
 
     // Container
     this.containerElement = null;
@@ -168,11 +168,7 @@ this.optimizeBudgetAllocation = this.optimizeBudgetAllocation.bind(this);
     // Expose for onclick handlers in rendered HTML (panel nav etc.)
     if (typeof window !== 'undefined') {
       window.hrddApp = this;
-    }
-  // Expose Panel 6 configuration globally for other components
-  if (typeof window !== 'undefined') {
-  window.hrddApp = this;
-  window.hrddApp.ENABLE_PANEL_6 = ENABLE_PANEL_6;
+      window.hrddApp.ENABLE_PANEL_6 = ENABLE_PANEL_6;
     }
   }
 
@@ -1390,8 +1386,9 @@ const statusBar = `
       });
 
       return html;
-    }
-if (ENABLE_PANEL_6 && panel === 6) {
+ }
+
+    if (ENABLE_PANEL_6 && panel === 6) {
       const html = ensureMinHeight(`
         <div style="display:flex;flex-direction:column;gap:16px;">
           ${renderPanelDescription(panel)}
@@ -1399,8 +1396,8 @@ if (ENABLE_PANEL_6 && panel === 6) {
         </div>
       `);
 
-     queueMicrotask(() => {
-          UIComponents.createCostAnalysisPanel('costAnalysisPanel', {
+      queueMicrotask(() => {
+        UIComponents.createCostAnalysisPanel('costAnalysisPanel', {
           supplierCount: this.state.supplierCount,
           hourlyRate: this.state.hourlyRate,
           toolAnnualProgrammeCosts: this.state.toolAnnualProgrammeCosts,
@@ -1423,10 +1420,9 @@ if (ENABLE_PANEL_6 && panel === 6) {
           onHourlyRateChange: this.onHourlyRateChange,
           onToolAnnualProgrammeCostChange: this.onToolAnnualProgrammeCostChange,
           onToolPerSupplierCostChange: this.onToolPerSupplierCostChange,
-           onToolInternalHoursChange: this.onToolInternalHoursChange,
-           onToolRemedyInternalHoursChange: this.onToolRemedyInternalHoursChange,
+          onToolInternalHoursChange: this.onToolInternalHoursChange,
+          onToolRemedyInternalHoursChange: this.onToolRemedyInternalHoursChange,
           optimizeBudgetAllocation: this.optimizeBudgetAllocation,
-          // NEW: Pass SAQ constraint state and handler
           saqConstraintEnabled: this.state.saqConstraintEnabled,
           onSAQConstraintChange: this.onSAQConstraintChange,
           socialAuditConstraintEnabled: this.state.socialAuditConstraintEnabled,
@@ -1434,6 +1430,8 @@ if (ENABLE_PANEL_6 && panel === 6) {
           onSocialAuditConstraintChange: this.onSocialAuditConstraintChange,
           onSocialAuditCostReductionChange: this.onSocialAuditCostReductionChange
         });
+      });
+
       return html;
     }
 
