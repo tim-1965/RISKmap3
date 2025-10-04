@@ -2256,7 +2256,7 @@ export function createCostAnalysisPanel(containerId, options) {
       <!-- Header Section -->
      <div style="display: flex; flex-direction: column; gap: ${responsive('12px', '16px')};">
             <div style="background: white; padding: ${responsive('16px', '24px')}; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08); border-top: 4px solid #3b82f6;">
-              <h4 style="font-size: ${responsive('16px', '18px')}; font-weight: 600; color: #1f2937; margin: 0 0 ${responsive('12px', '16px')} 0; text-align: center;">Effectiveness Comparison</h4>
+              <h4 style="font-size: ${responsive('16px', '18px')}; font-weight: 600; color: #1f2937; margin: 0 0 ${responsive('12px', '16px')} 0; text-align: center;">Optimization outcome</h4>
               <div style="display: grid; grid-template-columns: ${responsive('1fr', 'repeat(3, minmax(0, 1fr))')}; gap: ${responsive('12px', '16px')}; align-items: stretch;">
                 <div style="padding: ${responsive('14px', '20px')}; border-radius: 12px; border: 3px solid ${baselineColor}; background-color: ${baselineColor}15; text-align: center;">
                   <div style="font-size: ${responsive('11px', '12px')}; font-weight: 600; color: #4b5563; margin-bottom: 6px;">BASELINE RISK</div>
@@ -2292,7 +2292,7 @@ export function createCostAnalysisPanel(containerId, options) {
                       style="border: 1px solid #cbd5f5; background: #f8fafc; color: #1f2937; font-size: 12px; font-weight: 600; padding: 10px 18px; border-radius: 9999px; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); transition: all 0.2s ease;">Optimized risk</button>
             </div>
           </div>
-          <div id="costAnalysisMapCanvas" style="width: 100%; min-height: ${responsive('320px', '500px')}; height: ${responsive('320px', '500px')}; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);"></div>
+          <div id="costAnalysisMapCanvas" style="width: 100%; min-height: ${responsive('360px', '500px')}; height: auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);"></div>
           <div id="costAnalysisMapLegend" style="display: flex; justify-content: center; flex-wrap: wrap; gap: 12px;"></div>
         </div>
         <h2 style="font-size: ${responsive('18px', '20px')}; font-weight: bold; color: #1f2937; margin: 0;">Cost Analysis & Budget Optimization</h2>
