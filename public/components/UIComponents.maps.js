@@ -774,15 +774,15 @@ function renderCostAnalysisD3Map(worldData, {
 
     const featureCollection = { type: 'FeatureCollection', features };
     const { width: responsiveWidth, height: responsiveHeight } = getResponsiveDimensions(wrapper, width, height);
-    const svg = d3.select(wrapper)
-      .append('svg')
-      .attr('viewBox', `0 0 ${responsiveWidth} ${responsiveHeight}`)
-      .attr('preserveAspectRatio', 'xMidYMid meet')
-      .style('width', '100%')
-      .style('height', 'auto')
-      .style('border', '1px solid #e2e8f0')
-      .style('border-radius', '12px')
-      .style('background', '#f8fafc');
+   const svg = d3.select(wrapper)
+    .append('svg')
+    .attr('viewBox', `0 0 ${responsiveWidth} ${responsiveHeight}`)
+    .attr('preserveAspectRatio', 'xMidYMid meet')
+    .style('width', '100%')
+    .style('height', '100%')  // ← CHANGED to fill container
+    .style('border', '1px solid #e2e8f0')
+    .style('border-radius', '12px')
+    .style('background', '#f8fafc');
 
     const projection = d3.geoNaturalEarth1()
       .fitExtent([[16, 16], [responsiveWidth - 16, responsiveHeight - 16]], featureCollection);
