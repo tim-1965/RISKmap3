@@ -2304,6 +2304,11 @@ export function createCostAnalysisPanel(containerId, options) {
                 </div>
               </div>
             </div>
+             <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: ${responsive('12px', '16px')}; display: flex; flex-direction: column; gap: ${responsive('8px', '12px')};">
+              <h3 style="font-size: ${responsive('14px', '16px')}; font-weight: 600; color: #1f2937; margin: 0;">How the optimization works</h3>
+              <p style="font-size: ${responsive('12px', '13px')}; color: #1f2937; margin: 0;">Optimization takes the assumptions made on the previous panels, asks for inputs on costs (direct and indirect) and computes a current budget for the current approach. It then uses that same data and assumptions to work out whether there is a strategy that delivers a better reduction in baseline risk.</p>
+              <p style="font-size: ${responsive('12px', '13px')}; color: #1f2937; margin: 0;">Many clients will still want to maintain SAQ levels and still conduct audits for good reasons, so these stipulations can be added as constraints to the optimization. Note that audits (in particular) can be reduced in frequency and scope when they are partnered with tools that more effectively detect labour rights risks and promote supplier good conduct - so the constraints also allow for a reduction in audit costs going forward (see the check boxes below the cost assumptions).</p>
+            </div>
             <div style="display: flex; flex-direction: column; gap: ${responsive('6px', '8px')};">
               <h3 style="font-size: ${responsive('16px', '18px')}; font-weight: 600; color: #1f2937; margin: 0;">Global Risk Outlook</h3>
               <p style="font-size: ${responsive('12px', '13px')}; color: #4b5563; margin: 0;">Compare baseline, managed, and optimized risk levels for your selected supply chain countries.</p>
