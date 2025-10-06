@@ -2420,7 +2420,6 @@ export function createCostAnalysisPanel(containerId, options) {
               <div style="display: grid; grid-template-columns: ${responsive('1fr', 'repeat(3, minmax(0, 1fr))')}; gap: ${responsive('12px', '16px')}; align-items: stretch;">
                 <div style="padding: ${responsive('14px', '20px')}; border-radius: 12px; border: 3px solid ${baselineColor}; background-color: ${baselineColor}15; text-align: center;">
                   <div id="${baselineRiskElementId}" style="font-size: ${responsive('28px', '36px')}; font-weight: 700; color: ${baselineColor}; margin-bottom: 4px;">${baselineRiskDisplay}</div>
-                  <div style="font-size: ${responsive('28px', '36px')}; font-weight: 700; color: ${baselineColor}; margin-bottom: 4px;">${baselineRiskDisplay}</div>
                   <div style="font-size: ${responsive('12px', '14px')}; font-weight: 600; color: ${baselineColor};">Risk Level</div>
                   <div style="font-size: ${responsive('11px', '12px')}; color: #4b5563; margin-top: 6px;">Current baseline exposure</div>
                 </div>
