@@ -983,11 +983,11 @@ export function createResponsivenessEffectivenessPanel(containerId, { effectiven
 
   const toolLabels = riskEngine.hrddStrategyLabels;
   const conductDescriptions = [
-    'Continuous worker voice reinforces trust and keeps suppliers focused on doing the right thing.',
+    'Continuous worker voice provides real-time dashboards to focus suppliers on doing the right thing.',
     'Periodic surveys remind suppliers of expectations but require momentum between cycles.',
     'Knowing audits may be unannounced drives day-to-day compliance and better conduct.',
-    'Scheduled audits set a minimum bar yet give room for performative compliance.',
-    'Evidence-backed SAQs encourage formal systems that support positive conduct.',
+    'Scheduled audits make expectations clear but lack the tools to drive better compliance.',
+    'Evidence-backed SAQs remind suppliers of expectations but implementation is not checked.',
     'Self-declared SAQs offer little incentive for proactive behaviour change.'
   ];
 

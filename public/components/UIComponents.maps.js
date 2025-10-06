@@ -1421,16 +1421,20 @@ export async function createGlobalRiskMap(containerId, { countries, countryRisks
   const container = document.getElementById(containerId);
   if (!container) return;
 
+  const loadingId = `${containerId}-loading`;
+  const mapWrapperId = `${containerId}-map-wrapper`;
+  const legendId = `${containerId}-legend`;
+
   container.innerHTML = `
     <div class="global-risk-map-container" style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); text-align: center;">
       <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">${title}</h3>
-      <div id="map-loading" style="padding: 40px; color: #6b7280;">
+      <div id="${loadingId}" style="padding: 40px; color: #6b7280;">
         <div>Loading global coverage-based risk map...</div>
         <div style="font-size: 14px; margin-top: 8px;">Hover over countries to see their baseline risk levels before HRDD strategy application.</div>
       </div>
-      <div id="map-wrapper" style="width: 100%; display: flex; justify-content: center; margin-bottom: 16px;">
+      <div id="${mapWrapperId}" style="width: 100%; display: flex; justify-content: center; margin-bottom: 16px;">
       </div>
-      <div class="risk-legend" id="mapLegend" style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+      <div class="risk-legend" id="${legendId}" style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
       </div>
     </div>
   `;
@@ -1450,16 +1454,16 @@ export async function createGlobalRiskMap(containerId, { countries, countryRisks
     }
 
     renderGlobalD3Map(worldData, {
-      container: 'map-wrapper',
+      container: mapWrapperId,
       countries,
       countryRisks: safeCountryRisks,
       width,
       height: Math.max(height, 400)
     });
 
-    createMapLegend('mapLegend');
+    createMapLegend(legendId);
 
-    const loadingElement = document.getElementById('map-loading');
+    const loadingElement = document.getElementById(loadingId);
     if (loadingElement) loadingElement.remove();
   } catch (error) {
     console.error('Error creating global risk map:', error);
@@ -1478,6 +1482,10 @@ export async function createComparisonMap(containerId, { countries, countryRisks
   const container = document.getElementById(containerId);
   if (!container) return;
 
+  const loadingId = `${containerId}-loading`;
+  const mapWrapperId = `${containerId}-map-wrapper`;
+  const legendId = `${containerId}-legend`;
+
   const formatOverallRisk = (value) => Number.isFinite(value) ? value.toFixed(1) : 'N/A';
   
   // ENHANCED: Show focus information in title for managed risk maps
@@ -1495,13 +1503,13 @@ export async function createComparisonMap(containerId, { countries, countryRisks
   container.innerHTML = `
     <div class="comparison-map-container" style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); text-align: center;">
       <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">${displayTitle}</h3>
-      <div id="comp-map-loading-${mapType}" style="padding: 30px; color: #6b7280;">
+       <div id="${loadingId}" style="padding: 30px; color: #6b7280;">
         <div>Loading comparison map...</div>
         <div style="font-size: 14px; margin-top: 8px;">Showing selected countries only for comparison.</div>
       </div>
-      <div id="comp-map-wrapper-${mapType}" style="width: 100%; display: flex; justify-content: center; margin-bottom: 16px;">
+      <div id="${mapWrapperId}" style="width: 100%; display: flex; justify-content: center; margin-bottom: 16px;">
       </div>
-      <div class="risk-legend" id="compMapLegend-${mapType}" style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+      <div class="risk-legend" id="${legendId}" style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
       </div>
       
       ${mapType === 'managed' && Number.isFinite(focus) && focus > 0.3 ? `
@@ -1525,7 +1533,7 @@ export async function createComparisonMap(containerId, { countries, countryRisks
   );
 
   if (selectedCountriesData.length === 0) {
-    const loadingElement = document.getElementById(`comp-map-loading-${mapType}`);
+    const loadingElement = document.getElementById(loadingId);
     if (loadingElement) {
       loadingElement.innerHTML = `
         <div style="padding: 20px; color: #6b7280; text-align: center;">
@@ -1584,7 +1592,7 @@ export async function createComparisonMap(containerId, { countries, countryRisks
 
     // ENHANCED: Pass additional parameters for focus visualization
     renderComparisonD3Map(worldData, {
-      container: `comp-map-wrapper-${mapType}`,
+      container: mapWrapperId,
       countries,
       countryRisks: safeCountryRisks,
       selectedCountryRisks: highlightRisks,
@@ -1597,9 +1605,9 @@ export async function createComparisonMap(containerId, { countries, countryRisks
       focusEffectivenessMetrics: focusEffectivenessMetrics
     });
 
-    createMapLegend(`compMapLegend-${mapType}`);
+    createMapLegend(legendId);
 
-    const loadingElement = document.getElementById(`comp-map-loading-${mapType}`);
+    const loadingElement = document.getElementById(loadingId);
     if (loadingElement) loadingElement.remove();
    } catch (error) {
     console.error('Error creating comparison map:', error);
@@ -1627,13 +1635,13 @@ export async function createWorldMap(containerId, { countries, countryRisks, sel
     <div class="world-map-container" style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); text-align: center;">
       <h3 style="font-size: 18px; font-weight: 600; margin-bottom: ${titleMarginBottom};">${displayTitle}</h3>
       ${subtitleHtml}
-      <div id="map-loading" style="padding: 40px; color: #6b7280;">
+      <div id="${loadingId}" style="padding: 40px; color: #6b7280;">
         <div>Loading interactive coverage-based risk map...</div>
         <div style="font-size: 14px; margin-top: 8px;">Click on countries to select them for your portfolio risk assessment.</div>
       </div>
-      <div id="map-wrapper" style="width: 100%; display: flex; justify-content: center; margin-bottom: 16px;">
+      <div id="${mapWrapperId}" style="width: 100%; display: flex; justify-content: center; margin-bottom: 16px;">
       </div>
-      <div class="risk-legend" id="mapLegend" style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
+      <div class="risk-legend" id="${legendId}" style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;">
       </div>
     </div>
   `;
@@ -1658,7 +1666,7 @@ export async function createWorldMap(containerId, { countries, countryRisks, sel
       safeCountryRisks;
 
     renderD3Map(worldData, {
-      container: 'map-wrapper',
+      container: mapWrapperId,
       countries,
       countryRisks: displayRisks,
       selectedCountries: safeSelectedCountries,
@@ -1668,9 +1676,9 @@ export async function createWorldMap(containerId, { countries, countryRisks, sel
       mapType
     });
 
-    createMapLegend('mapLegend');
+     createMapLegend(legendId);
 
-    const loadingElement = document.getElementById('map-loading');
+    const loadingElement = document.getElementById(loadingId);
     if (loadingElement) loadingElement.remove();
    } catch (error) {
     console.error('Error creating world map:', error);
