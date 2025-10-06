@@ -2817,7 +2817,8 @@ const updateRiskSummaryValues = (baseline, managed, optimized) => {
     auditCoverageTarget,
     mapController,
     getOptimizedRiskMap,
-    updateRiskSummaryValues
+    updateRiskSummaryValues,
+    updateStatusMessage: mapController?.updateStatusMessage
   });
 }
 
@@ -3065,7 +3066,8 @@ function setupCostAnalysisEventListeners(handlers) {
     auditCoverageTarget,
     mapController,
     getOptimizedRiskMap,
-    updateRiskSummaryValues
+    updateRiskSummaryValues,
+    updateStatusMessage: updateMapStatusMessage
   } = handlers;
 
   const clampNumber = (value, min, max, fallback = 0) => {
@@ -3550,7 +3552,11 @@ function setupCostAnalysisEventListeners(handlers) {
             : {};
           mapController.setOptimizedRisks(optimizedRiskMap);
         }
-        updateStatusMessage();
+         if (typeof updateMapStatusMessage === 'function') {
+          updateMapStatusMessage();
+        } else if (mapController && typeof mapController.updateStatusMessage === 'function') {
+          mapController.updateStatusMessage();
+        }
         const latestBudgetRaw = riskEngine.calculateBudgetAnalysis(
           latestSupplierCount,
           latestHourlyRate,
