@@ -2167,9 +2167,12 @@ export function createCostAnalysisPanel(containerId, options) {
   const costPerSupplier = sanitizedSupplierCount > 0
     ? Math.round(totalBudget / sanitizedSupplierCount)
     : 0;
-  const optimization = typeof optimizeBudgetAllocation === 'function'
-    ? optimizeBudgetAllocation()
-    : null;
+  let optimization = null;
+  if (shouldAutoRunOptimization && typeof optimizeBudgetAllocation === 'function') {
+    optimization = optimizeBudgetAllocation();
+  } else if (lastOptimizationResult && typeof lastOptimizationResult === 'object') {
+    optimization = lastOptimizationResult;
+  }
 
   const getOptimizedRiskMap = (result) => {
     if (!result || typeof result !== 'object') {

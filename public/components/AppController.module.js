@@ -55,7 +55,7 @@ export class AppController {
             // Panel 4 Remedy utilisation - Internal hours per tool
             toolRemedyInternalHours: [0, 10, 10, 6, 2, 2], // Internal work hours per supplier per year to apply each tool's findings
 
-            saqConstraintEnabled: false, // Default: unchecked (preserves current behavior)
+            saqConstraintEnabled: true, // Default: enforce SAQ coverage unless user opts out
             socialAuditConstraintEnabled: true, // Default: keep current audit coverage capped at 100%
             socialAuditCostReduction: 50, // Percentage reduction applied when audit constraint enabled
             shouldAutoRunOptimization: false,
@@ -570,6 +570,7 @@ onSocialAuditCostReductionChange(percentage) {
   this.state.socialAuditCostReduction = clamped;
   this.state.isDirty = true;
   this.state.lastOptimizationResult = null;
+  this.state.shouldAutoRunOptimization = false;
   this.updateUI();
 }
 
@@ -657,8 +658,75 @@ onSocialAuditCostReductionChange(percentage) {
     }
 
     const panelContent = this.containerElement.querySelector('#panelContent');
+
+    const scrollContainer = this.mainScrollElement
+      || (panelContent && panelContent.parentElement)
+      || null;
+    const previousScrollTop = scrollContainer && Number.isFinite(scrollContainer.scrollTop)
+      ? scrollContainer.scrollTop
+      : null;
+
+    let restoreFocus = null;
+    if (panelContent && typeof document !== 'undefined') {
+      const activeElement = document.activeElement || null;
+      if (activeElement && panelContent.contains(activeElement)) {
+        const activeId = activeElement.id || null;
+        const selectionStart = typeof activeElement.selectionStart === 'number'
+          ? activeElement.selectionStart
+          : null;
+        const selectionEnd = typeof activeElement.selectionEnd === 'number'
+          ? activeElement.selectionEnd
+          : null;
+
+        restoreFocus = () => {
+          if (!activeId) return;
+          const nextActive = document.getElementById(activeId);
+          if (!nextActive || typeof nextActive.focus !== 'function') {
+            return;
+          }
+
+          try {
+            nextActive.focus({ preventScroll: true });
+          } catch (error) {
+            nextActive.focus();
+          }
+
+          if (
+            selectionStart !== null
+            && selectionEnd !== null
+            && typeof nextActive.setSelectionRange === 'function'
+          ) {
+            try {
+              nextActive.setSelectionRange(selectionStart, selectionEnd);
+            } catch (error) {
+              // Ignore selection restoration errors (e.g., input type="number")
+            }
+          }
+        };
+      }
+    }
+
     if (panelContent) {
       panelContent.innerHTML = this.renderCurrentPanel();
+    }
+
+    const restoreView = () => {
+      if (scrollContainer && Number.isFinite(previousScrollTop)) {
+        scrollContainer.scrollTop = previousScrollTop;
+      }
+      if (typeof restoreFocus === 'function') {
+        restoreFocus();
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(restoreView);
+      } else {
+        setTimeout(restoreView, 0);
+      }
+    } else {
+      restoreView();
     }
    }
 
