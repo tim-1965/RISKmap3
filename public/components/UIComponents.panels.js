@@ -7,6 +7,28 @@ let panel4ResizeListenerAttached = false;
 const markerObservers = new WeakMap();
 const markerResizeHandlers = new WeakMap();
 
+function parseEditableNumber(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  const trimmed = String(value).trim();
+  if (trimmed === '') {
+    return null;
+  }
+
+  if (trimmed.endsWith('.') || trimmed === '-' || trimmed === '+') {
+    return null;
+  }
+
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function estimateSliderThumbSize(rangeInput, sliderRect) {
   const fallback = 16;
   if (!rangeInput) return fallback;
@@ -431,18 +453,36 @@ export function createHRDDStrategyPanel(containerId, { strategy, onStrategyChang
     }
   };
 
-  const applyStrategyValue = (index, value, options = {}) => {
+ const applyStrategyValue = (index, value, options = {}) => {
     if (!Number.isInteger(index) || index < 0 || index >= localStrategy.length) {
       return null;
     }
 
-    const newValue = Math.max(0, Math.min(100, parseFloat(value) || 0));
-    localStrategy[index] = newValue;
-
     const rangeInput = document.getElementById(`strategy_${index}`);
     const numberInput = document.getElementById(`strategyNum_${index}`);
-    if (rangeInput) rangeInput.value = newValue;
-    if (numberInput) numberInput.value = newValue;
+    const numeric = parseEditableNumber(value);
+
+    if (numeric === null) {
+      if (options.source === 'range' && numberInput) {
+        numberInput.value = `${localStrategy[index]}`;
+      }
+      return null;
+    }
+
+    const newValue = Math.max(0, Math.min(100, numeric));
+    localStrategy[index] = newValue;
+
+    if (rangeInput) rangeInput.value = `${newValue}`;
+    if (numberInput) {
+      const sanitizedString = `${newValue}`;
+      const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
+      const editingThisInput = options.source === 'number' && numberInput === activeElement;
+      const trimmedCurrent = typeof numberInput.value === 'string' ? numberInput.value.trim() : '';
+
+      if (!editingThisInput || trimmedCurrent === '' || trimmedCurrent !== sanitizedString) {
+        numberInput.value = sanitizedString;
+      }
+    }
 
     updateStrategy({ notify: options.notify !== false });
     schedulePanel3Alignment();
@@ -524,12 +564,19 @@ export function createHRDDStrategyPanel(containerId, { strategy, onStrategyChang
       }
     };
 
-    if (rangeInput) {
-      rangeInput.addEventListener('input', (e) => handleStrategyValueChange(e.target.value));
+     if (rangeInput) {
+      rangeInput.addEventListener('input', (e) => handleStrategyValueChange(e.target.value, { source: 'range' }));
     }
 
     if (numberInput) {
-      numberInput.addEventListener('input', (e) => handleStrategyValueChange(e.target.value));
+      numberInput.addEventListener('input', (e) => handleStrategyValueChange(e.target.value, { source: 'number' }));
+      numberInput.addEventListener('blur', () => {
+        if (numberInput.value.trim() === '') {
+          applyStrategyValue(index, localStrategy[index], { notify: false, source: 'number' });
+        } else {
+          handleStrategyValueChange(numberInput.value, { source: 'number' });
+        }
+      });
     }
   });
 
@@ -649,14 +696,30 @@ export function createFocusPanel(containerId, { focus, onFocusChange, focusEffec
 
   attachDefaultSliderMarker(focusSlider, defaultFocusValue);
 
-  const updateFocus = (value, notify = true) => {
-    const parsed = Math.max(0, Math.min(1, parseFloat(value) || 0));
+   const updateFocus = (value, notify = true, options = {}) => {
+    const numeric = parseEditableNumber(value);
+    if (numeric === null) {
+      if (options.source === 'slider' && focusNumber) {
+        focusNumber.value = localFocus.toFixed(2);
+      }
+      return;
+    }
+
+    const parsed = Math.max(0, Math.min(1, numeric));
     localFocus = parsed;
     const formatted = parsed.toFixed(2);
     const percent = Math.round(parsed * 100);
 
     if (focusSlider) focusSlider.value = formatted;
-    if (focusNumber) focusNumber.value = formatted;
+    if (focusNumber) {
+      const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
+      const editing = options.source === 'number' && activeElement === focusNumber;
+      const trimmedCurrent = typeof focusNumber.value === 'string' ? focusNumber.value.trim() : '';
+
+      if (!editing || trimmedCurrent === '' || trimmedCurrent !== formatted) {
+        focusNumber.value = formatted;
+      }
+    }
     if (focusValueElement) focusValueElement.textContent = formatted;
     if (focusPercentElement) focusPercentElement.textContent = percent;
     if (focusDescriptorElement) focusDescriptorElement.textContent = describeFocusLevel(parsed);
@@ -667,20 +730,27 @@ export function createFocusPanel(containerId, { focus, onFocusChange, focusEffec
   };
 
   if (focusSlider) {
-    focusSlider.addEventListener('input', (event) => updateFocus(event.target.value));
+    focusSlider.addEventListener('input', (event) => updateFocus(event.target.value, true, { source: 'slider' }));
   }
 
   if (focusNumber) {
-    focusNumber.addEventListener('input', (event) => updateFocus(event.target.value));
+    focusNumber.addEventListener('input', (event) => updateFocus(event.target.value, true, { source: 'number' }));
+    focusNumber.addEventListener('blur', () => {
+      if (focusNumber.value.trim() === '') {
+        updateFocus(localFocus, false, { source: 'number' });
+      } else {
+        updateFocus(focusNumber.value, true, { source: 'number' });
+      }
+    });
   }
 
-  updateFocus(localFocus, false);
+  updateFocus(localFocus, false, { source: 'init' });
 
   if (typeof window !== 'undefined') {
     if (window.hrddApp) {
-      window.hrddApp.updateFocusUI = (value, options = {}) => updateFocus(value, options.notify !== false);
+      window.hrddApp.updateFocusUI = (value, options = {}) => updateFocus(value, options.notify !== false, options);
     } else {
-      window.updateFocusUI = (value, options = {}) => updateFocus(value, options.notify !== false);
+      window.updateFocusUI = (value, options = {}) => updateFocus(value, options.notify !== false, options);
     }
   }
 }
@@ -1861,16 +1931,40 @@ export function createWeightingsPanel(containerId, { weights, onWeightsChange })
       : weightValue;
     attachDefaultSliderMarker(rangeInput, defaultWeightValue);
 
-    const updateWeightValue = (value) => {
-      const newValue = Math.max(0, Math.min(100, parseFloat(value) || 0));
+    const updateWeightValue = (value, options = {}) => {
+      const numeric = parseEditableNumber(value);
+      if (numeric === null) {
+        if (options.source === 'range') {
+          numberInput.value = `${localWeights[index]}`;
+        }
+        return;
+      }
+
+      const newValue = Math.max(0, Math.min(100, numeric));
       localWeights[index] = newValue;
-      rangeInput.value = newValue;
-      numberInput.value = newValue;
+      rangeInput.value = `${newValue}`;
+
+      const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
+      const editing = options.source === 'number' && activeElement === numberInput;
+      const trimmedCurrent = typeof numberInput.value === 'string' ? numberInput.value.trim() : '';
+
+      if (!editing || trimmedCurrent === '' || trimmedCurrent !== `${newValue}`) {
+        numberInput.value = `${newValue}`;
+      }
+
       updateWeights();
     };
 
-    rangeInput.addEventListener('input', (e) => updateWeightValue(e.target.value));
-    numberInput.addEventListener('input', (e) => updateWeightValue(e.target.value));
+    rangeInput.addEventListener('input', (e) => updateWeightValue(e.target.value, { source: 'range' }));
+    numberInput.addEventListener('input', (e) => updateWeightValue(e.target.value, { source: 'number' }));
+    numberInput.addEventListener('blur', () => {
+      if (numberInput.value.trim() === '') {
+        numberInput.value = `${localWeights[index]}`;
+        rangeInput.value = `${localWeights[index]}`;
+      } else {
+        updateWeightValue(numberInput.value, { source: 'number' });
+      }
+    });
   });
 
   const resetButton = document.getElementById('resetWeights');
@@ -1906,7 +2000,8 @@ export function updateSelectedCountriesDisplay(selectedCountries, countries, cou
 
   selectedCountries.forEach((countryCode, index) => {
     const country = countries.find(c => c.isoCode === countryCode);
-    const volume = countryVolumes[countryCode] ?? 10;
+     const volume = countryVolumes[countryCode] ?? 10;
+    let currentVolume = Number.isFinite(Number(volume)) ? Number(volume) : 0;
 
     const countryItem = document.createElement('div');
     countryItem.style.cssText = `
@@ -1940,8 +2035,36 @@ export function updateSelectedCountriesDisplay(selectedCountries, countries, cou
     const removeButton = document.getElementById(`remove_${countryCode}`);
 
     volumeInput.addEventListener('input', (e) => {
-      const value = Math.max(0, parseFloat(e.target.value) || 0);
-      e.target.value = value;
+      const numeric = parseEditableNumber(e.target.value);
+      if (numeric === null) {
+        return;
+      }
+
+      const value = Math.max(0, numeric);
+      currentVolume = value;
+      const sanitizedString = `${value}`;
+      if (e.target.value !== sanitizedString) {
+        e.target.value = sanitizedString;
+      }
+      if (onVolumeChange) onVolumeChange(countryCode, value);
+    });
+
+    volumeInput.addEventListener('blur', () => {
+      const trimmed = volumeInput.value.trim();
+      if (trimmed === '') {
+        volumeInput.value = `${currentVolume}`;
+        return;
+      }
+
+      const numeric = parseEditableNumber(trimmed);
+      if (numeric === null) {
+        volumeInput.value = `${currentVolume}`;
+        return;
+      }
+
+      const value = Math.max(0, numeric);
+      currentVolume = value;
+      volumeInput.value = `${value}`;
       if (onVolumeChange) onVolumeChange(countryCode, value);
     });
 
@@ -2533,7 +2656,7 @@ export function createCostAnalysisPanel(containerId, options) {
         : 'No supply chain countries selected yet.';
       const optimizationText = hasOptimizedData()
         ? '<span style="color: #16a34a; font-weight: 600;">Optimized view reflects your latest run.</span>'
-        : '<span style="color: #b45309; font-weight: 600;">Run the optimizer to unlock the optimized view.</span>';
+        : '<span style="color: #b45309; font-weight: 600;">Press the button mid-way down the panel to run the optimizer and unlock the optimized view.</span>';
       statusElement.innerHTML = `${selectionText} ${optimizationText}`;
     };
 
@@ -2921,26 +3044,122 @@ function setupCostAnalysisEventListeners(handlers) {
     });
   };
 
-  const supplierInput = document.getElementById('supplierCountInput');
+ const supplierInput = document.getElementById('supplierCountInput');
   if (supplierInput) {
+    let currentSupplierCount = Math.max(1, Math.floor(parseFloat(supplierCount) || 1));
     supplierInput.addEventListener('input', event => {
-      onSupplierCountChange(event.target.value);
+      const numeric = parseEditableNumber(event.target.value);
+      if (numeric === null) {
+        return;
+      }
+
+      const sanitized = Math.max(1, Math.floor(numeric));
+      currentSupplierCount = sanitized;
+      const sanitizedString = `${sanitized}`;
+      if (event.target.value !== sanitizedString) {
+        event.target.value = sanitizedString;
+      }
+      if (typeof onSupplierCountChange === 'function') {
+        onSupplierCountChange(sanitized);
+      }
+    });
+    supplierInput.addEventListener('blur', () => {
+      const trimmed = supplierInput.value.trim();
+      if (trimmed === '') {
+        supplierInput.value = `${currentSupplierCount}`;
+        return;
+      }
+
+      const numeric = parseEditableNumber(trimmed);
+      if (numeric === null) {
+        supplierInput.value = `${currentSupplierCount}`;
+        return;
+      }
+
+      const sanitized = Math.max(1, Math.floor(numeric));
+      currentSupplierCount = sanitized;
+      supplierInput.value = `${sanitized}`;
+      if (typeof onSupplierCountChange === 'function') {
+        onSupplierCountChange(sanitized);
+      }
     });
   }
 
   const rateInput = document.getElementById('hourlyRateInput');
   if (rateInput) {
+    let currentHourlyRate = Math.max(0, parseFloat(hourlyRate) || 0);
     rateInput.addEventListener('input', event => {
-      onHourlyRateChange(event.target.value);
+      const numeric = parseEditableNumber(event.target.value);
+      if (numeric === null) {
+        return;
+      }
+
+      const sanitized = Math.max(0, numeric);
+      currentHourlyRate = sanitized;
+      const sanitizedString = `${sanitized}`;
+      if (event.target.value !== sanitizedString) {
+        event.target.value = sanitizedString;
+      }
+      if (typeof onHourlyRateChange === 'function') {
+        onHourlyRateChange(sanitized);
+      }
+    });
+    rateInput.addEventListener('blur', () => {
+      const trimmed = rateInput.value.trim();
+      if (trimmed === '') {
+        rateInput.value = `${currentHourlyRate}`;
+        return;
+      }
+
+      const numeric = parseEditableNumber(trimmed);
+      if (numeric === null) {
+        rateInput.value = `${currentHourlyRate}`;
+        return;
+      }
+
+      const sanitized = Math.max(0, numeric);
+      currentHourlyRate = sanitized;
+      rateInput.value = `${sanitized}`;
+      if (typeof onHourlyRateChange === 'function') {
+        onHourlyRateChange(sanitized);
+      }
     });
   }
 
   toolAnnualProgrammeCosts.forEach((cost, index) => {
     const numberInput = document.getElementById(`toolAnnualCostNum_${index}`);
     if (numberInput) {
+      let currentValue = Math.min(50000, Math.max(0, parseFloat(numberInput.value) || 0));
       numberInput.addEventListener('input', event => {
-        const newValue = Math.min(50000, Math.max(0, parseFloat(event.target.value) || 0));
-        numberInput.value = newValue;
+        const numeric = parseEditableNumber(event.target.value);
+        if (numeric === null) {
+          return;
+        }
+
+        const newValue = Math.min(50000, Math.max(0, numeric));
+        currentValue = newValue;
+        const sanitizedString = `${newValue}`;
+        if (numberInput.value !== sanitizedString) {
+          numberInput.value = sanitizedString;
+        }
+        onToolAnnualProgrammeCostChange(index, newValue);
+      });
+      numberInput.addEventListener('blur', () => {
+        const trimmed = numberInput.value.trim();
+        if (trimmed === '') {
+          numberInput.value = `${currentValue}`;
+          return;
+        }
+
+        const numeric = parseEditableNumber(trimmed);
+        if (numeric === null) {
+          numberInput.value = `${currentValue}`;
+          return;
+        }
+
+        const newValue = Math.min(50000, Math.max(0, numeric));
+        currentValue = newValue;
+        numberInput.value = `${newValue}`;
         onToolAnnualProgrammeCostChange(index, newValue);
       });
     }
@@ -2949,9 +3168,37 @@ function setupCostAnalysisEventListeners(handlers) {
   toolPerSupplierCosts.forEach((cost, index) => {
     const numberInput = document.getElementById(`toolPerSupplierCostNum_${index}`);
     if (numberInput) {
+      let currentValue = Math.min(2000, Math.max(0, parseFloat(numberInput.value) || 0));
       numberInput.addEventListener('input', event => {
-        const newValue = Math.min(2000, Math.max(0, parseFloat(event.target.value) || 0));
-        numberInput.value = newValue;
+        const numeric = parseEditableNumber(event.target.value);
+        if (numeric === null) {
+          return;
+        }
+
+        const newValue = Math.min(2000, Math.max(0, numeric));
+        currentValue = newValue;
+        const sanitizedString = `${newValue}`;
+        if (numberInput.value !== sanitizedString) {
+          numberInput.value = sanitizedString;
+        }
+        onToolPerSupplierCostChange(index, newValue);
+      });
+      numberInput.addEventListener('blur', () => {
+        const trimmed = numberInput.value.trim();
+        if (trimmed === '') {
+          numberInput.value = `${currentValue}`;
+          return;
+        }
+
+        const numeric = parseEditableNumber(trimmed);
+        if (numeric === null) {
+          numberInput.value = `${currentValue}`;
+          return;
+        }
+
+        const newValue = Math.min(2000, Math.max(0, numeric));
+        currentValue = newValue;
+        numberInput.value = `${newValue}`;
         onToolPerSupplierCostChange(index, newValue);
       });
     }
@@ -2960,9 +3207,37 @@ function setupCostAnalysisEventListeners(handlers) {
   toolInternalHours.forEach((hours, index) => {
     const numberInput = document.getElementById(`toolInternalHoursNum_${index}`);
     if (numberInput) {
+      let currentValue = Math.min(500, Math.max(0, parseFloat(numberInput.value) || 0));
       numberInput.addEventListener('input', event => {
-        const newValue = Math.min(500, Math.max(0, parseFloat(event.target.value) || 0));
-        numberInput.value = newValue;
+        const numeric = parseEditableNumber(event.target.value);
+        if (numeric === null) {
+          return;
+        }
+
+        const newValue = Math.min(500, Math.max(0, numeric));
+        currentValue = newValue;
+        const sanitizedString = `${newValue}`;
+        if (numberInput.value !== sanitizedString) {
+          numberInput.value = sanitizedString;
+        }
+        onToolInternalHoursChange(index, newValue);
+      });
+      numberInput.addEventListener('blur', () => {
+        const trimmed = numberInput.value.trim();
+        if (trimmed === '') {
+          numberInput.value = `${currentValue}`;
+          return;
+        }
+
+        const numeric = parseEditableNumber(trimmed);
+        if (numeric === null) {
+          numberInput.value = `${currentValue}`;
+          return;
+        }
+
+        const newValue = Math.min(500, Math.max(0, numeric));
+        currentValue = newValue;
+        numberInput.value = `${newValue}`;
         onToolInternalHoursChange(index, newValue);
       });
     }
@@ -2971,9 +3246,37 @@ function setupCostAnalysisEventListeners(handlers) {
   toolRemedyInternalHours.forEach((hours, index) => {
     const numberInput = document.getElementById(`toolRemedyInternalHoursNum_${index}`);
     if (numberInput) {
+      let currentValue = Math.min(200, Math.max(0, parseFloat(numberInput.value) || 0));
       numberInput.addEventListener('input', event => {
-        const newValue = Math.min(200, Math.max(0, parseFloat(event.target.value) || 0));
-        numberInput.value = newValue;
+        const numeric = parseEditableNumber(event.target.value);
+        if (numeric === null) {
+          return;
+        }
+
+        const newValue = Math.min(200, Math.max(0, numeric));
+        currentValue = newValue;
+        const sanitizedString = `${newValue}`;
+        if (numberInput.value !== sanitizedString) {
+          numberInput.value = sanitizedString;
+        }
+        onToolRemedyInternalHoursChange(index, newValue);
+      });
+      numberInput.addEventListener('blur', () => {
+        const trimmed = numberInput.value.trim();
+        if (trimmed === '') {
+          numberInput.value = `${currentValue}`;
+          return;
+        }
+
+        const numeric = parseEditableNumber(trimmed);
+        if (numeric === null) {
+          numberInput.value = `${currentValue}`;
+          return;
+        }
+
+        const newValue = Math.min(200, Math.max(0, numeric));
+        currentValue = newValue;
+        numberInput.value = `${newValue}`;
         onToolRemedyInternalHoursChange(index, newValue);
       });
     }
@@ -2999,14 +3302,43 @@ function setupCostAnalysisEventListeners(handlers) {
     });
   }
 
-  const socialAuditReductionInput = document.getElementById('socialAuditCostReduction');
+ const socialAuditReductionInput = document.getElementById('socialAuditCostReduction');
   if (socialAuditReductionInput) {
     const clampedValue = Math.max(0, Math.min(100, parseFloat(socialAuditCostReduction) || 0));
     socialAuditReductionInput.value = clampedValue;
+    let currentValue = clampedValue;
     socialAuditReductionInput.addEventListener('input', event => {
-      const parsed = parseFloat(event.target.value);
-      const sanitized = Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : 0;
-      event.target.value = sanitized;
+      const numeric = parseEditableNumber(event.target.value);
+      if (numeric === null) {
+        return;
+      }
+
+      const sanitized = Math.max(0, Math.min(100, numeric));
+      currentValue = sanitized;
+      const sanitizedString = `${sanitized}`;
+      if (event.target.value !== sanitizedString) {
+        event.target.value = sanitizedString;
+      }
+      if (typeof onSocialAuditCostReductionChange === 'function') {
+        onSocialAuditCostReductionChange(sanitized);
+      }
+    });
+    socialAuditReductionInput.addEventListener('blur', () => {
+      const trimmed = socialAuditReductionInput.value.trim();
+      if (trimmed === '') {
+        socialAuditReductionInput.value = `${currentValue}`;
+        return;
+      }
+
+      const numeric = parseEditableNumber(trimmed);
+      if (numeric === null) {
+        socialAuditReductionInput.value = `${currentValue}`;
+        return;
+      }
+
+      const sanitized = Math.max(0, Math.min(100, numeric));
+      currentValue = sanitized;
+      socialAuditReductionInput.value = `${sanitized}`;
       if (typeof onSocialAuditCostReductionChange === 'function') {
         onSocialAuditCostReductionChange(sanitized);
       }
