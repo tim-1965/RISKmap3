@@ -666,8 +666,7 @@ onSocialAuditCostReductionChange(percentage) {
       ? scrollContainer.scrollTop
       : null;
 
-    let restoreFocus = null;
-    if (panelContent && typeof document !== 'undefined') {
+   if (panelContent && typeof document !== 'undefined') {
       const activeElement = document.activeElement || null;
       if (activeElement && panelContent.contains(activeElement)) {
         const activeId = activeElement.id || null;
@@ -677,6 +676,49 @@ onSocialAuditCostReductionChange(percentage) {
         const selectionEnd = typeof activeElement.selectionEnd === 'number'
           ? activeElement.selectionEnd
           : null;
+        const activeValue = typeof activeElement.value === 'string'
+          ? activeElement.value
+          : null;
+        const activeTag = activeElement.tagName ? activeElement.tagName.toLowerCase() : '';
+        const activeType = activeTag === 'input'
+          ? (activeElement.getAttribute('type') || '').toLowerCase()
+          : null;
+
+        const applySelection = (element) => {
+          if (!element) return;
+
+          const valueForSelection = activeValue ?? (typeof element.value === 'string' ? element.value : '');
+          const hasSelectionApi = typeof element.setSelectionRange === 'function';
+          const maxPosition = typeof valueForSelection === 'string' ? valueForSelection.length : 0;
+          const fallbackPosition = selectionEnd !== null ? selectionEnd : maxPosition;
+          const normalizedStart = selectionStart !== null
+            ? Math.max(0, Math.min(selectionStart, maxPosition))
+            : Math.max(0, Math.min(fallbackPosition, maxPosition));
+          const normalizedEnd = selectionEnd !== null
+            ? Math.max(0, Math.min(selectionEnd, maxPosition))
+            : normalizedStart;
+
+          if (typeof element.value === 'string' && activeValue !== null && element.value !== activeValue) {
+            element.value = activeValue;
+          }
+
+          if (hasSelectionApi) {
+            try {
+              element.setSelectionRange(normalizedStart, normalizedEnd);
+              return true;
+            } catch (error) {
+              // Continue to fallback handling when selection APIs are unsupported (e.g., number inputs)
+            }
+          }
+
+          if (typeof element.value === 'string') {
+            const currentValue = element.value;
+            element.value = '';
+            element.value = currentValue;
+          }
+
+          return false;
+        };
 
         restoreFocus = () => {
           if (!activeId) return;
@@ -691,16 +733,40 @@ onSocialAuditCostReductionChange(percentage) {
             nextActive.focus();
           }
 
-          if (
-            selectionStart !== null
-            && selectionEnd !== null
-            && typeof nextActive.setSelectionRange === 'function'
-          ) {
-            try {
-              nextActive.setSelectionRange(selectionStart, selectionEnd);
-            } catch (error) {
-              // Ignore selection restoration errors (e.g., input type="number")
+          const tryApplySelection = () => {
+            const applied = applySelection(nextActive);
+
+            if (!applied && activeType === 'number') {
+              const value = typeof nextActive.value === 'string' ? nextActive.value : '';
+              const caret = selectionEnd !== null ? selectionEnd : value.length;
+              if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+                window.requestAnimationFrame(() => {
+                  if (typeof nextActive.setSelectionRange === 'function') {
+                    try {
+                      nextActive.setSelectionRange(caret, caret);
+                    } catch (error) {
+                      const current = typeof nextActive.value === 'string' ? nextActive.value : '';
+                      nextActive.value = '';
+                      nextActive.value = current;
+                    }
+                  } else if (typeof nextActive.value === 'string') {
+                    const current = nextActive.value;
+                    nextActive.value = '';
+                    nextActive.value = current;
+                  }
+                });
+              }
             }
+          };
+
+          tryApplySelection();
+
+          if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(() => {
+              if (document.activeElement === nextActive) {
+                tryApplySelection();
+              }
+            });
           }
         };
       }
