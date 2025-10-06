@@ -1123,6 +1123,8 @@ function renderComparisonD3Map(worldData, { container, countries, countryRisks, 
     const features = extractWorldFeatures(worldData);
     if (!features.length) throw new Error('No geographic features available');
 
+    const featureCollection = { type: 'FeatureCollection', features };
+
     const metadataMap = new Map(countries.map(country => [country.isoCode, country]));
     const nameLookup = buildCountryNameLookup(metadataMap);
 
@@ -1135,7 +1137,7 @@ function renderComparisonD3Map(worldData, { container, countries, countryRisks, 
       feature.__isoCode && selectedSet.has(feature.__isoCode)
     );
 
-    if (selectedFeatures.length === 0) {
+        if (selectedFeatures.length === 0) {
       wrapper.innerHTML = `
         <div style="padding: 40px; text-align: center; color: #6b7280;">
           <div style="font-size: 48px; margin-bottom: 16px;">🌍</div>
@@ -1145,22 +1147,22 @@ function renderComparisonD3Map(worldData, { container, countries, countryRisks, 
       return;
     }
 
-const rect = wrapper.getBoundingClientRect();
-const containerHeight = rect.height || height || 500;
+    const rect = wrapper.getBoundingClientRect();
+    const containerHeight = rect.height || height || 500;
 
-// Calculate proper width for world map proportions
-const mapAspectRatio = 2.4;
-const calculatedWidth = Math.round(containerHeight * mapAspectRatio);
+    // Calculate proper width for world map proportions
+    const mapAspectRatio = 2.4;
+    const calculatedWidth = Math.round(containerHeight * mapAspectRatio);
 
-const svg = d3.select(wrapper)
-  .append('svg')
-  .attr('viewBox', `0 0 ${calculatedWidth} ${containerHeight}`)
-  .attr('preserveAspectRatio', 'xMidYMid meet')
-  .style('width', '100%')
-  .style('height', '100%')
-  .style('border', '1px solid #e2e8f0')
-  .style('border-radius', '12px')
-  .style('background', '#f8fafc');
+    const svg = d3.select(wrapper)
+      .append('svg')
+      .attr('viewBox', `0 0 ${calculatedWidth} ${containerHeight}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet')
+      .style('width', '100%')
+      .style('height', '100%')
+      .style('border', '1px solid #e2e8f0')
+      .style('border-radius', '12px')
+      .style('background', '#f8fafc');
 
     const projection = d3.geoNaturalEarth1()
       .fitExtent([[16, 16], [calculatedWidth - 16, containerHeight - 16]], featureCollection);
