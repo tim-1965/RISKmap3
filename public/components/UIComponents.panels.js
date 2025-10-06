@@ -2340,6 +2340,14 @@ export function createCostAnalysisPanel(containerId, options) {
   const managedColor = '#f97316';
   const optimizedRiskColor = '#16a34a';
 
+  const baselineRiskElementId = `${containerId}_baselineRiskValue`;
+  const managedRiskElementId = `${containerId}_managedRiskValue`;
+  const optimizedRiskElementId = `${containerId}_optimizedRiskValue`;
+
+  let currentBaselineRiskValue = baselineRiskValue;
+  let currentManagedRiskValue = managedRiskValue;
+  let currentOptimizedRiskValue = optimizedRiskValue;
+
   const rowCount = strategyCount;
 
   const inputGridTemplate = responsive('1fr', 'repeat(3, minmax(0, 1fr))');
@@ -2411,20 +2419,20 @@ export function createCostAnalysisPanel(containerId, options) {
               <h4 style="font-size: ${responsive('16px', '18px')}; font-weight: 600; color: #1f2937; margin: 0 0 ${responsive('12px', '16px')} 0; text-align: center;">Optimization outcome</h4>
               <div style="display: grid; grid-template-columns: ${responsive('1fr', 'repeat(3, minmax(0, 1fr))')}; gap: ${responsive('12px', '16px')}; align-items: stretch;">
                 <div style="padding: ${responsive('14px', '20px')}; border-radius: 12px; border: 3px solid ${baselineColor}; background-color: ${baselineColor}15; text-align: center;">
-                  <div style="font-size: ${responsive('11px', '12px')}; font-weight: 600; color: #4b5563; margin-bottom: 6px;">BASELINE RISK</div>
+                  <div id="${baselineRiskElementId}" style="font-size: ${responsive('28px', '36px')}; font-weight: 700; color: ${baselineColor}; margin-bottom: 4px;">${baselineRiskDisplay}</div>
                   <div style="font-size: ${responsive('28px', '36px')}; font-weight: 700; color: ${baselineColor}; margin-bottom: 4px;">${baselineRiskDisplay}</div>
                   <div style="font-size: ${responsive('12px', '14px')}; font-weight: 600; color: ${baselineColor};">Risk Level</div>
                   <div style="font-size: ${responsive('11px', '12px')}; color: #4b5563; margin-top: 6px;">Current baseline exposure</div>
                 </div>
                 <div style="padding: ${responsive('14px', '20px')}; border-radius: 12px; border: 3px solid ${managedColor}; background-color: ${managedColor}15; text-align: center;">
                   <div style="font-size: ${responsive('11px', '12px')}; font-weight: 600; color: #4b5563; margin-bottom: 6px;">MANAGED RISK</div>
-                  <div style="font-size: ${responsive('28px', '36px')}; font-weight: 700; color: ${managedColor}; margin-bottom: 4px;">${managedRiskDisplay}</div>
+                  <div id="${managedRiskElementId}" style="font-size: ${responsive('28px', '36px')}; font-weight: 700; color: ${managedColor}; margin-bottom: 4px;">${managedRiskDisplay}</div>
                   <div style="font-size: ${responsive('12px', '14px')}; font-weight: 600; color: ${managedColor};">Risk Level</div>
                   <div style="font-size: ${responsive('11px', '12px')}; color: #4b5563; margin-top: 6px;">Achieved with current tools</div>
                 </div>
                 <div style="padding: ${responsive('14px', '20px')}; border-radius: 12px; border: 3px solid ${optimizedRiskColor}; background-color: ${optimizedRiskColor}15; text-align: center;">
                   <div style="font-size: ${responsive('11px', '12px')}; font-weight: 600; color: #4b5563; margin-bottom: 6px;">OPTIMISED RISK</div>
-                  <div style="font-size: ${responsive('28px', '36px')}; font-weight: 700; color: ${optimizedRiskColor}; margin-bottom: 4px;">${optimizedRiskDisplay}</div>
+                  <div id="${optimizedRiskElementId}" style="font-size: ${responsive('28px', '36px')}; font-weight: 700; color: ${optimizedRiskColor}; margin-bottom: 4px;">${optimizedRiskDisplay}</div>
                   <div style="font-size: ${responsive('12px', '14px')}; font-weight: 600; color: ${optimizedRiskColor};">Risk Level</div>
                   <div style="font-size: ${responsive('11px', '12px')}; color: #4b5563; margin-top: 6px;">Projected after optimisation</div>
                 </div>
@@ -2633,6 +2641,38 @@ export function createCostAnalysisPanel(containerId, options) {
     </div>
   `;
 
+const updateRiskSummaryValues = (baseline, managed, optimized) => {
+    const nextBaseline = normalizeRiskValue(baseline, currentBaselineRiskValue);
+    const nextManaged = normalizeRiskValue(managed, currentManagedRiskValue);
+    const fallbackOptimized = normalizeRiskValue(currentOptimizedRiskValue, nextManaged);
+    const nextOptimized = normalizeRiskValue(optimized, fallbackOptimized);
+
+    currentBaselineRiskValue = nextBaseline;
+    currentManagedRiskValue = nextManaged;
+    currentOptimizedRiskValue = nextOptimized;
+
+    const baselineElement = document.getElementById(baselineRiskElementId);
+    if (baselineElement) {
+      baselineElement.textContent = formatRiskLevel(currentBaselineRiskValue);
+    }
+
+    const managedElement = document.getElementById(managedRiskElementId);
+    if (managedElement) {
+      managedElement.textContent = formatRiskLevel(currentManagedRiskValue);
+    }
+
+    const optimizedElement = document.getElementById(optimizedRiskElementId);
+    if (optimizedElement) {
+      optimizedElement.textContent = formatRiskLevel(currentOptimizedRiskValue);
+    }
+  };
+
+  updateRiskSummaryValues(
+    currentBaselineRiskValue,
+    currentManagedRiskValue,
+    currentOptimizedRiskValue
+  );
+
   const mapController = (() => {
     const modeButtons = Array.from(container.querySelectorAll('.cost-map-mode'));
     const statusElement = container.querySelector('#costAnalysisMapStatus');
@@ -2772,7 +2812,8 @@ export function createCostAnalysisPanel(containerId, options) {
     budgetData: normalizedBudgetData,
     auditCoverageTarget,
     mapController,
-    getOptimizedRiskMap
+    getOptimizedRiskMap,
+    updateRiskSummaryValues
   });
 }
 
@@ -3019,7 +3060,8 @@ function setupCostAnalysisEventListeners(handlers) {
     budgetData,
     auditCoverageTarget,
     mapController,
-    getOptimizedRiskMap
+    getOptimizedRiskMap,
+    updateRiskSummaryValues
   } = handlers;
 
   const clampNumber = (value, min, max, fallback = 0) => {
@@ -3473,12 +3515,19 @@ function setupCostAnalysisEventListeners(handlers) {
         );
 
         const latestOptimization = optimizeBudgetAllocation();
-         if (mapController && typeof mapController.setOptimizedRisks === 'function') {
+        if (typeof updateRiskSummaryValues === 'function') {
+          updateRiskSummaryValues(
+            latestOptimization?.baselineRisk,
+            latestOptimization?.currentManagedRisk,
+            latestOptimization?.optimizedManagedRisk
+          );
+        }
+        if (mapController && typeof mapController.setOptimizedRisks === 'function') {
           const optimizedRiskMap = typeof getOptimizedRiskMap === 'function'
             ? getOptimizedRiskMap(latestOptimization)
             : {};
           mapController.setOptimizedRisks(optimizedRiskMap);
-          }
+        }
         const latestBudgetRaw = riskEngine.calculateBudgetAnalysis(
           latestSupplierCount,
           latestHourlyRate,
