@@ -2682,17 +2682,17 @@ function renderOptimizationResults(optimization, budgetData, baselineRisk, manag
 
   const saqConstraintEnforced = Boolean(optimization?.saqConstraintEnforced);
   const socialAuditConstraintEnforced = Boolean(
-    optimization?.socialAuditConstraintEnforced ?? normalizedBudgetData?.socialAuditConstraintEnabled
+    optimization?.socialAuditConstraintEnforced ?? safeBudgetData?.socialAuditConstraintEnabled
   );
   const socialAuditReductionApplied = Number.isFinite(optimization?.socialAuditCostReductionApplied)
     ? Math.max(0, Math.min(100, optimization.socialAuditCostReductionApplied))
-    : Number.isFinite(normalizedBudgetData?.socialAuditCostReduction)
-      ? Math.max(0, Math.min(100, normalizedBudgetData.socialAuditCostReduction))
+    : Number.isFinite(safeBudgetData?.socialAuditCostReduction)
+      ? Math.max(0, Math.min(100, safeBudgetData.socialAuditCostReduction))
       : 0;
   const socialAuditCoverageTarget = Number.isFinite(optimization?.socialAuditCoverageTarget)
     ? Math.max(0, Math.min(100, optimization.socialAuditCoverageTarget))
-    : Number.isFinite(normalizedBudgetData?.socialAuditCoverageTarget)
-      ? Math.max(0, Math.min(100, normalizedBudgetData.socialAuditCoverageTarget))
+   : Number.isFinite(safeBudgetData?.socialAuditCoverageTarget)
+      ? Math.max(0, Math.min(100, safeBudgetData.socialAuditCoverageTarget))
       : null;
   const socialAuditCoverageText = socialAuditCoverageTarget !== null
     ? `${socialAuditCoverageTarget.toFixed(0)}%`
