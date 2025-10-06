@@ -1304,30 +1304,29 @@ function renderD3Map(worldData, { container, countries, countryRisks, selectedCo
     const features = extractWorldFeatures(worldData);
     if (!features.length) throw new Error('No geographic features available');
 
-   // Around line 892-908, fix the undefined variables:
-const featureCollection = { type: 'FeatureCollection', features: selectedFeatures };  // ← Add this line before projection
+  const featureCollection = { type: 'FeatureCollection', features };
 
-const rect = wrapper.getBoundingClientRect();
-const containerHeight = rect.height || height || 500;
-const mapAspectRatio = 2.4;
-const calculatedWidth = Math.round(containerHeight * mapAspectRatio);
+    const rect = wrapper.getBoundingClientRect();
+    const containerHeight = rect.height || height || 500;
+    const mapAspectRatio = 2.4;
+    const calculatedWidth = Math.round(containerHeight * mapAspectRatio);
 
-const svg = d3.select(wrapper)
-  .append('svg')
-  .attr('viewBox', `0 0 ${calculatedWidth} ${containerHeight}`)
-  .attr('preserveAspectRatio', 'xMidYMid meet')
-  .style('width', '100%')
-  .style('height', '100%')  // Keep as 100% here since we're calculating dimensions
-  .style('border', '1px solid #e2e8f0')
-  .style('border-radius', '12px')
-  .style('background', '#f8fafc');
+    const svg = d3.select(wrapper)
+      .append('svg')
+      .attr('viewBox', `0 0 ${calculatedWidth} ${containerHeight}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet')
+      .style('width', '100%')
+      .style('height', '100%')
+      .style('border', '1px solid #e2e8f0')
+      .style('border-radius', '12px')
+      .style('background', '#f8fafc');
 
-const projection = d3.geoNaturalEarth1()
-  .fitExtent([[16, 16], [calculatedWidth - 16, containerHeight - 16]], featureCollection);
+    const projection = d3.geoNaturalEarth1()
+      .fitExtent([[16, 16], [calculatedWidth - 16, containerHeight - 16]], featureCollection);
     const path = d3.geoPath(projection);
     const mapGroup = svg.append('g').attr('class', 'map-layer');
 
-     mapGroup.append('path')
+    mapGroup.append('path')
       .datum({ type: 'Sphere' })
       .attr('d', path)
       .attr('fill', '#e0f2fe')
@@ -1349,7 +1348,7 @@ const projection = d3.geoNaturalEarth1()
 
     const countryGroup = mapGroup.append('g').attr('class', 'countries');
 
-     countryGroup.selectAll('path.country')
+    countryGroup.selectAll('path.country')
       .data(features)
       .enter()
       .append('path')
