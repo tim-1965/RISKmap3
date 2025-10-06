@@ -14,7 +14,7 @@ const PANEL_DESCRIPTIONS = {
   1: 'Decide for yourself. Calculate a global picture of labour rights risks using publicly-available indices from reputable organisations. Use sliders (below the map) to change weightings. Then go to panel 2.',
   2: 'Click on the map to select the countries in your supply chain or pick from the list below (not all countries are in the map). You can optionally weighting different countries (eg: by number of suppliers or workers, value of sourcing etc..). Then go to panel 3.',
   3: 'Set out your supply chain due diligence progam across six different industry tools and the effectiveness of each. Set the extent to which your efforts are focussed on higher risk countries. Then go to panel 4.',
-  4: 'Calibrate how the tools you use deliver sustained remedy and promote good conduct once issues are detected. Use both columns to reflect your experience of each tool. Then go to panel 5.',
+  4: 'Calibrate how the tools you use to deliver sustained remedy and promote good conduct once issues are detected. Use both columns to reflect your experience of each tool. Then go to panel 5.',
   5: `Here are your results showing your baseline risk level (panel 2) and how well you are managing it. You can see how each element in your strategy impacts your risks. You can print out a report capturing the analysis in full.${ENABLE_PANEL_6 ? ' Then go to panel 6.' : ''}`,
   ...(ENABLE_PANEL_6 ? {
     6: 'Analyze the costs of your external tools and internal efforts. See how your current budget allocation compares to an optimized approach that maximizes managed-risk reduction per dollar spent.'

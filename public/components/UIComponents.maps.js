@@ -1625,6 +1625,10 @@ export async function createWorldMap(containerId, { countries, countryRisks, sel
   const container = document.getElementById(containerId);
   if (!container) return;
 
+  const loadingId = `${containerId}-loading`;
+  const mapWrapperId = `${containerId}-map-wrapper`;
+  const legendId = `${containerId}-legend`;
+
   const displayTitle = mapType === 'managed' ?
   `${title} - Managed Risk (Coverage-Based): ${managedRisk ? managedRisk.toFixed(1) : 'N/A'}` :
   title;
