@@ -1261,6 +1261,9 @@ const statusBar = `
         <div style="display:flex;flex-direction:column;gap:16px;">
           ${renderPanelDescription(panel)}
           <div id="strategyRiskSummary" style="min-height:300px;"></div>
+          <div style="background-color:#fef3c7;border:1px solid #f59e0b;border-radius:12px;padding:20px;line-height:1.6;color:#92400e;font-size:14px;">
+            <strong>Continuous Worker Voice</strong> sets up an authentic, continuous and anonymous connection between all the workers at a supplier and the stakeholder looking to manage the risk of labour rights abuses - for example, by providing workers with a simple app that they can use anywhere at anytime to provide feedback on their treatment at work from a risk point of view. This includes providing real-time dashboards that measure worker sentiment to workplaces themselves; real-time feedback automatically promotes good workplaces practices, monitors the effectiveness of remedy and whether remedy is sustained.
+          </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:stretch;" id="panel3Grid">
             <div id="hrddStrategyPanel" style="min-height:600px;"></div>
             <div id="transparencyPanel" style="min-height:600px;"></div>
