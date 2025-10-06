@@ -3318,7 +3318,77 @@ function renderDetailedBudgetBreakdown(
    });
   };
 
-  const currentBreakdown = buildBreakdown(currentAllocation, false);
+   const deriveSuppliersUsingTool = (coverageValue, fallback) => {
+    if (Number.isFinite(fallback) && fallback > 0) {
+      return fallback;
+    }
+    const coverageRatio = Math.max(0, Math.min(1, Number.isFinite(coverageValue) ? coverageValue / 100 : 0));
+    return Math.ceil(safeSupplierCount * coverageRatio);
+  };
+
+  const deriveHoursFromCost = (internalCost, perSupplierHours, suppliers) => {
+    if (Number.isFinite(internalCost) && internalCost > 0 && safeHourlyRate > 0) {
+      return internalCost / safeHourlyRate;
+    }
+    const safePerSupplier = Number.isFinite(perSupplierHours) ? Math.max(0, perSupplierHours) : 0;
+    return suppliers * safePerSupplier;
+  };
+
+  const mapDeploymentToBreakdown = (deployment, index) => {
+    const allocationCoverage = Number.isFinite(currentAllocation[index]) ? currentAllocation[index] : 0;
+    const deploymentCoverage = Number.isFinite(deployment?.coverage)
+      ? deployment.coverage
+      : allocationCoverage;
+    const suppliersUsingTool = deriveSuppliersUsingTool(
+      deploymentCoverage,
+      deployment?.suppliersUsingTool
+    );
+
+    const detectionInternalCost = Number.isFinite(deployment?.detectionInternalCost)
+      ? deployment.detectionInternalCost
+      : 0;
+    const remedyInternalCost = Number.isFinite(deployment?.remedyInternalCost)
+      ? deployment.remedyInternalCost
+      : 0;
+
+    const detectionHours = deriveHoursFromCost(
+      detectionInternalCost,
+      safeInternalHours[index],
+      suppliersUsingTool
+    );
+    const remedyHours = deriveHoursFromCost(
+      remedyInternalCost,
+      safeRemedyHours[index],
+      suppliersUsingTool
+    );
+
+    const totalExternalCost = Number.isFinite(deployment?.totalExternalCost)
+      ? deployment.totalExternalCost
+      : 0;
+    const totalInternalCost = Number.isFinite(deployment?.totalInternalCost)
+      ? deployment.totalInternalCost
+      : detectionInternalCost + remedyInternalCost;
+    const totalCost = Number.isFinite(deployment?.totalCost)
+      ? deployment.totalCost
+      : totalExternalCost + totalInternalCost;
+
+    return {
+      name: deployment?.toolName || riskEngine.hrddStrategyLabels[index] || `Tool ${index + 1}`,
+      coverage: deploymentCoverage,
+      suppliersUsingTool,
+      detectionHours,
+      remedyHours,
+      totalExternalCost,
+      detectionInternalCost,
+      remedyInternalCost,
+      totalInternalCost,
+      totalCost
+    };
+  };
+
+  const currentBreakdown = Array.isArray(safeBudgetData.toolDeployments) && safeBudgetData.toolDeployments.length
+    ? safeBudgetData.toolDeployments.map(mapDeploymentToBreakdown)
+    : buildBreakdown(currentAllocation, false);
   const optimizedBreakdown = buildBreakdown(
     optimizedToolAllocation,
     socialAuditConstraintEnforced && socialAuditReduction > 0
