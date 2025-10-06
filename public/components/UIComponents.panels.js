@@ -2451,7 +2451,7 @@ export function createCostAnalysisPanel(containerId, options) {
                   </label>
                 </div>
                 <p style="margin: 0; font-size: 12px; color: #92400e; max-width: ${responsive('100%', '380px')};">
-                  Check the box if you would like to keep your current level of audit coverage (capped at 100%) in the optimisation. Using additional tools, you will reduce audit costs and audit frequency and the internal costs of remedy confirmation (eg: delivering a 50% or more reduction in the cost of the coverage). Put this percentage into the box or leave at 100% (so no change).
+                  Check the box if you would like to keep your current level of audit coverage (capped at 100%) in the optimisation. Audit is important to check physical and visible issues (eg: number of fire doors in a factory) but these are not matters that change that frequently. Using additional tools, you will reduce audit costs and audit frequency and the internal costs of remedy confirmation (eg: delivering a 50% or more reduction in the cost of the coverage). Put this percentage into the box or leave at 100% (so no change).
                 </p>
               </div>
             </div>
