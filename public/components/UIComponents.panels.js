@@ -2448,13 +2448,17 @@ export function createCostAnalysisPanel(containerId, options) {
               <p style="font-size: ${responsive('12px', '13px')}; color: #4b5563; margin: 0;">Compare baseline, managed, and optimized risk levels for your selected supply chain countries.</p>
               <div id="costAnalysisMapStatus" style="font-size: ${responsive('11px', '12px')}; color: #475569;"></div>
             </div>
-            <div style="display: flex; flex-wrap: wrap; gap: ${responsive('8px', '12px')};">
-              <button type="button" class="cost-map-mode" data-map-mode="baseline"
-                      style="border: 1px solid #cbd5f5; background: #f8fafc; color: #1f2937; font-size: 12px; font-weight: 600; padding: 10px 18px; border-radius: 9999px; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); transition: all 0.2s ease;">Baseline risk</button>
-              <button type="button" class="cost-map-mode" data-map-mode="managed"
-                      style="border: 1px solid #cbd5f5; background: #f8fafc; color: #1f2937; font-size: 12px; font-weight: 600; padding: 10px 18px; border-radius: 9999px; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); transition: all 0.2s ease;">Managed risk</button>
-              <button type="button" class="cost-map-mode" data-map-mode="optimized"
-                      style="border: 1px solid #cbd5f5; background: #f8fafc; color: #1f2937; font-size: 12px; font-weight: 600; padding: 10px 18px; border-radius: 9999px; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); transition: all 0.2s ease;">Optimized risk</button>
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: ${responsive('8px', '12px')};">
+              <div style="display: flex; flex-wrap: wrap; gap: ${responsive('8px', '12px')};">
+                <button type="button" class="cost-map-mode" data-map-mode="baseline"
+                        style="border: 1px solid #cbd5f5; background: #f8fafc; color: #1f2937; font-size: 12px; font-weight: 600; padding: 10px 18px; border-radius: 9999px; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); transition: all 0.2s ease;">Baseline risk</button>
+                <button type="button" class="cost-map-mode" data-map-mode="managed"
+                        style="border: 1px solid #cbd5f5; background: #f8fafc; color: #1f2937; font-size: 12px; font-weight: 600; padding: 10px 18px; border-radius: 9999px; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); transition: all 0.2s ease;">Managed risk</button>
+                <button type="button" class="cost-map-mode" data-map-mode="optimized"
+                        style="border: 1px solid #cbd5f5; background: #f8fafc; color: #1f2937; font-size: 12px; font-weight: 600; padding: 10px 18px; border-radius: 9999px; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); transition: all 0.2s ease;">Optimized risk</button>
+              </div>
+              <button id="runOptimizationFromMap" type="button"
+                      style="border: 1px solid #16a34a; background: #16a34a; color: #ffffff; font-size: 12px; font-weight: 600; padding: 10px 18px; border-radius: 9999px; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12); transition: all 0.2s ease;">Run optimization</button>
             </div>
           </div>
            <div id="costAnalysisMapCanvas" style="width: 100%; height: ${responsive('400px', '500px')}; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);"></div>
@@ -2696,7 +2700,7 @@ const updateRiskSummaryValues = (baseline, managed, optimized) => {
         : 'No supply chain countries selected yet.';
       const optimizationText = hasOptimizedData()
         ? '<span style="color: #16a34a; font-weight: 600;">Optimized view reflects your latest run.</span>'
-        : '<span style="color: #b45309; font-weight: 600;">Press the button mid-way down the panel to run the optimizer and unlock the optimized view.</span>';
+        : '<span style="color: #b45309; font-weight: 600;">Use the "Run Optimzation" button to unlock the optimized view.</span>';
       statusElement.innerHTML = `${selectionText} ${optimizationText}`;
     };
 
@@ -3461,15 +3465,33 @@ function setupCostAnalysisEventListeners(handlers) {
   }
 
   const optimizeBtn = document.getElementById('runOptimization');
-  if (optimizeBtn) {
-    optimizeBtn.addEventListener('click', () => {
+  const mapOptimizeBtn = document.getElementById('runOptimizationFromMap');
+  const optimizationButtons = [optimizeBtn, mapOptimizeBtn].filter(Boolean);
+
+  if (optimizationButtons.length > 0) {
+    const handleOptimizationClick = (event) => {
       if (typeof optimizeBudgetAllocation !== 'function') {
         return;
       }
 
-      const originalText = optimizeBtn.textContent;
-      optimizeBtn.disabled = true;
-      optimizeBtn.textContent = 'Optimizing...';
+      if (typeof event?.preventDefault === 'function') {
+        event.preventDefault();
+      }
+
+      const clickedTarget = event?.currentTarget;
+      const clickedButton = clickedTarget instanceof HTMLElement ? clickedTarget : null;
+      const originalStates = optimizationButtons.map(button => ({
+        button,
+        text: button.textContent,
+        disabled: button.disabled
+      }));
+
+      optimizationButtons.forEach(button => {
+        button.disabled = true;
+        if (button === clickedButton) {
+          button.textContent = 'Optimizing...';
+        }
+      });
 
       try {
         const latestSupplierCount = Math.max(
@@ -3522,12 +3544,13 @@ function setupCostAnalysisEventListeners(handlers) {
             latestOptimization?.optimizedManagedRisk
           );
         }
-        if (mapController && typeof mapController.setOptimizedRisks === 'function') {
+         if (mapController && typeof mapController.setOptimizedRisks === 'function') {
           const optimizedRiskMap = typeof getOptimizedRiskMap === 'function'
             ? getOptimizedRiskMap(latestOptimization)
             : {};
           mapController.setOptimizedRisks(optimizedRiskMap);
         }
+        updateStatusMessage();
         const latestBudgetRaw = riskEngine.calculateBudgetAnalysis(
           latestSupplierCount,
           latestHourlyRate,
@@ -3598,12 +3621,20 @@ function setupCostAnalysisEventListeners(handlers) {
             responsivenessStrategy,
             responsivenessEffectiveness,
             focus
-          );
+         );
         }
       } finally {
-        optimizeBtn.disabled = false;
-        optimizeBtn.textContent = originalText;
+        originalStates.forEach(({ button, text, disabled }) => {
+          button.disabled = disabled;
+          if (typeof text === 'string') {
+            button.textContent = text;
+          }
+        });
       }
+    };
+
+    optimizationButtons.forEach(button => {
+      button.addEventListener('click', handleOptimizationClick);
     });
   }
 }
