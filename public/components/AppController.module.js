@@ -659,6 +659,8 @@ onSocialAuditCostReductionChange(percentage) {
 
     const panelContent = this.containerElement.querySelector('#panelContent');
 
+    let restoreFocus = null;
+
     const scrollContainer = this.mainScrollElement
       || (panelContent && panelContent.parentElement)
       || null;
