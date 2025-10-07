@@ -541,17 +541,24 @@ function showComparisonMapTooltip(event, countryData, countryRisks, countryMetad
   }
 
   // ENHANCED: Calculate focus benefits for this country
-  let focusBenefitInfo = '';
-  if (mapType === 'managed' && baselineRisks && countryId && Number.isFinite(focus)) {
-    const baselineRisk = baselineRisks[countryId];
-    if (Number.isFinite(baselineRisk) && Number.isFinite(risk)) {
-      const riskReduction = baselineRisk - risk;
-      const reductionPercentage = baselineRisk > 0 ? (riskReduction / baselineRisk) * 100 : 0;
-      
-      // Determine focus benefit level
-      const baselinePortfolioRisk = focusEffectivenessMetrics?.riskData?.reduce((sum, d) => sum + d.baselineRisk, 0) / 
-                                   (focusEffectivenessMetrics?.riskData?.length || 1) || baselineRisk;
-      const focusBenefitLevel = riskEngine.getFocusBenefitLevel(baselineRisk, baselinePortfolioRisk, focus);
+let focusBenefitInfo = '';
+if (mapType === 'managed' && baselineRisks && countryId && Number.isFinite(focus) && focus > 0.01) {
+  const baselineRisk = baselineRisks[countryId];
+  if (Number.isFinite(baselineRisk) && baselineRisk > 0 && Number.isFinite(risk)) {
+    const riskReduction = baselineRisk - risk;
+    const reductionPercentage = baselineRisk > 0 ? (riskReduction / baselineRisk) * 100 : 0;
+    
+    // Safely calculate portfolio risk
+    let baselinePortfolioRisk = baselineRisk;
+    if (focusEffectivenessMetrics?.riskData && Array.isArray(focusEffectivenessMetrics.riskData)) {
+      const validRisks = focusEffectivenessMetrics.riskData
+        .map(d => d.baselineRisk)
+        .filter(r => Number.isFinite(r) && r > 0);
+      if (validRisks.length > 0) {
+        baselinePortfolioRisk = validRisks.reduce((sum, r) => sum + r, 0) / validRisks.length;
+      }
+    }
+    const focusBenefitLevel = riskEngine.getFocusBenefitLevel(baselineRisk, baselinePortfolioRisk, focus);
       
       const benefitDescriptions = {
         'high': 'High priority - receives enhanced coverage',
@@ -767,24 +774,18 @@ function renderCostAnalysisD3Map(worldData, {
     const featureCollection = { type: 'FeatureCollection', features };
     
     // Get container dimensions and calculate proper aspect ratio
-    const rect = wrapper.getBoundingClientRect();
-    const containerWidth = rect.width || width || 960;
-    const containerHeight = rect.height || height || 500;
-    
-    // Use a world map aspect ratio but scale to fill container
-    const mapAspectRatio = 2.0; // Typical world map ratio
-    let svgWidth, svgHeight;
-    
-    // Calculate dimensions to fill container while maintaining aspect ratio
-    if (containerWidth / containerHeight > mapAspectRatio) {
-      // Container is wider than map aspect ratio
-      svgWidth = containerHeight * mapAspectRatio;
-      svgHeight = containerHeight;
-    } else {
-      // Container is taller than map aspect ratio
-      svgWidth = containerWidth;
-      svgHeight = containerWidth / mapAspectRatio;
-    }
+      const rect = wrapper.getBoundingClientRect();
+      const containerWidth = rect.width || width || 960;
+      const containerHeight = rect.height || height || 500;
+
+      // Use a world map aspect ratio
+      const mapAspectRatio = 2.0; // Typical world map ratio
+      let svgWidth = containerWidth;
+      let svgHeight = Math.min(containerHeight, containerWidth / mapAspectRatio);
+
+      // Ensure minimum dimensions
+      svgWidth = Math.max(320, svgWidth);
+      svgHeight = Math.max(200, svgHeight);
     
     const svg = d3.select(wrapper)
       .append('svg')

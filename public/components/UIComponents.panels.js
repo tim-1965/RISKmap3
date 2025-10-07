@@ -1,6 +1,13 @@
 import { riskEngine } from './RiskEngine.js';
 import { renderCostAnalysisMap } from './UIComponents.maps.js';
 
+function computeAuditCoverageFromAllocation(allocation) {
+  if (!Array.isArray(allocation) || allocation.length < 4) return 0;
+  const announced = Number.isFinite(allocation[2]) ? Math.max(0, Math.min(100, allocation[2])) : 0;
+  const unannounced = Number.isFinite(allocation[3]) ? Math.max(0, Math.min(100, allocation[3])) : 0;
+  return announced + unannounced;
+}
+
 let panel3ResizeListenerAttached = false;
 let panel4ResizeListenerAttached = false;
 
@@ -1982,7 +1989,15 @@ export function updateSelectedCountriesDisplay(selectedCountries, countries, cou
   const container = document.getElementById('selectedCountries');
   if (!container) return;
 
-  if (!Array.isArray(selectedCountries) || selectedCountries.length === 0) {
+  // **FIX: Validate inputs**
+  const safeSelectedCountries = Array.isArray(selectedCountries) 
+    ? selectedCountries.filter(code => typeof code === 'string' && code.trim())
+    : [];
+  
+  const safeCountries = Array.isArray(countries) ? countries : [];
+  const safeVolumes = (countryVolumes && typeof countryVolumes === 'object') ? countryVolumes : {};
+
+  if (safeSelectedCountries.length === 0) {
     container.innerHTML = `
       <div style="padding: 24px; border: 2px dashed #cbd5f5; border-radius: 12px; background-color: #eff6ff; text-align: center; color: #1d4ed8;">
         <div style="font-size: 40px; margin-bottom: 12px;">🌍</div>
@@ -1993,15 +2008,21 @@ export function updateSelectedCountriesDisplay(selectedCountries, countries, cou
     return;
   }
 
+  // **FIX: Clear and rebuild to prevent stale entries**
   container.innerHTML = '';
   const countryList = document.createElement('div');
   countryList.style.cssText = 'display: flex; flex-direction: column; gap: 12px;';
   container.appendChild(countryList);
 
-  selectedCountries.forEach((countryCode, index) => {
-    const country = countries.find(c => c.isoCode === countryCode);
-     const volume = countryVolumes[countryCode] ?? 10;
-    let currentVolume = Number.isFinite(Number(volume)) ? Number(volume) : 0;
+  // **FIX: Build country lookup once**
+  const countryLookup = new Map(
+    safeCountries.map(c => [c.isoCode, c])
+  );
+
+  safeSelectedCountries.forEach((countryCode, index) => {
+    const country = countryLookup.get(countryCode);
+    const volume = safeVolumes[countryCode] ?? 10;
+    let currentVolume = Number.isFinite(Number(volume)) ? Number(volume) : 10;
 
     const countryItem = document.createElement('div');
     countryItem.style.cssText = `
@@ -2019,7 +2040,7 @@ export function updateSelectedCountriesDisplay(selectedCountries, countries, cou
       <div style="display: flex; align-items: center; gap: 12px;">
         <div style="display: flex; align-items: center; gap: 6px;">
           <label style="font-size: 14px; color: #6b7280; font-weight: 500;">Weighting:</label>
-          <input type="number" min="0" value="${volume}" id="volume_${countryCode}"
+          <input type="number" min="0" value="${currentVolume}" id="volume_${countryCode}"
                  style="width: 80px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; text-align: center;">
         </div>
         <button id="remove_${countryCode}"
@@ -2031,46 +2052,41 @@ export function updateSelectedCountriesDisplay(selectedCountries, countries, cou
 
     countryList.appendChild(countryItem);
 
+    // **FIX: Add event listeners after DOM insertion**
     const volumeInput = document.getElementById(`volume_${countryCode}`);
     const removeButton = document.getElementById(`remove_${countryCode}`);
 
-    volumeInput.addEventListener('input', (e) => {
-      const numeric = parseEditableNumber(e.target.value);
-      if (numeric === null) {
-        return;
-      }
+    if (volumeInput) {
+      volumeInput.addEventListener('input', (e) => {
+        const parsed = parseFloat(e.target.value);
+        if (Number.isFinite(parsed) && parsed >= 0) {
+          currentVolume = parsed;
+          if (onVolumeChange) onVolumeChange(countryCode, parsed);
+        }
+      });
 
-      const value = Math.max(0, numeric);
-      currentVolume = value;
-      const sanitizedString = `${value}`;
-      if (e.target.value !== sanitizedString) {
-        e.target.value = sanitizedString;
-      }
-      if (onVolumeChange) onVolumeChange(countryCode, value);
-    });
+      volumeInput.addEventListener('blur', () => {
+        const trimmed = volumeInput.value.trim();
+        if (trimmed === '') {
+          volumeInput.value = `${currentVolume}`;
+          return;
+        }
+        const parsed = parseFloat(trimmed);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          volumeInput.value = `${currentVolume}`;
+        } else {
+          currentVolume = parsed;
+          volumeInput.value = `${parsed}`;
+          if (onVolumeChange) onVolumeChange(countryCode, parsed);
+        }
+      });
+    }
 
-    volumeInput.addEventListener('blur', () => {
-      const trimmed = volumeInput.value.trim();
-      if (trimmed === '') {
-        volumeInput.value = `${currentVolume}`;
-        return;
-      }
-
-      const numeric = parseEditableNumber(trimmed);
-      if (numeric === null) {
-        volumeInput.value = `${currentVolume}`;
-        return;
-      }
-
-      const value = Math.max(0, numeric);
-      currentVolume = value;
-      volumeInput.value = `${value}`;
-      if (onVolumeChange) onVolumeChange(countryCode, value);
-    });
-
-    removeButton.addEventListener('click', () => {
-      if (onCountrySelect) onCountrySelect(countryCode);
-    });
+    if (removeButton) {
+      removeButton.addEventListener('click', () => {
+        if (onCountrySelect) onCountrySelect(countryCode);
+      });
+    }
   });
 }
 
@@ -2078,22 +2094,42 @@ export function updateRiskBreakdown(selectedCountries, countries, countryRisks) 
   const container = document.getElementById('riskBreakdownList');
   if (!container) return;
 
-  if (selectedCountries.length === 0) {
+  // **FIX: Validate inputs**
+  const safeSelectedCountries = Array.isArray(selectedCountries) 
+    ? selectedCountries.filter(code => typeof code === 'string' && code.trim())
+    : [];
+  const safeCountries = Array.isArray(countries) ? countries : [];
+  const safeCountryRisks = (countryRisks && typeof countryRisks === 'object') ? countryRisks : {};
+
+  if (safeSelectedCountries.length === 0) {
     container.innerHTML = '<p style="color: #6b7280; font-style: italic; text-align: center; padding: 16px;">No countries selected</p>';
     return;
   }
 
-  const breakdown = selectedCountries.map(countryCode => {
-    const country = countries.find(c => c.isoCode === countryCode);
-    const risk = countryRisks[countryCode] || 0;
-    const riskBand = riskEngine.getRiskBand(risk);
-    const riskColor = riskEngine.getRiskColor(risk);
+  // **FIX: Build country lookup for efficiency**
+  const countryLookup = new Map(safeCountries.map(c => [c.isoCode, c]));
 
-    return { country, risk, riskBand, riskColor, countryCode };
-  }).sort((a, b) => b.risk - a.risk);
+  const breakdown = safeSelectedCountries
+    .map(countryCode => {
+      const country = countryLookup.get(countryCode);
+      const risk = Number.isFinite(safeCountryRisks[countryCode]) ? safeCountryRisks[countryCode] : 0;
+      const riskBand = riskEngine.getRiskBand(risk);
+      const riskColor = riskEngine.getRiskColor(risk);
 
-  container.innerHTML = breakdown.map(({ country, risk, riskBand, riskColor, countryCode }) => `
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #e5e7eb;">
+      return { country, risk, riskBand, riskColor, countryCode };
+    })
+    .sort((a, b) => b.risk - a.risk);
+
+  // **FIX: Clear container first to prevent flickering**
+  container.innerHTML = '';
+  
+  // **FIX: Build as DocumentFragment for better performance**
+  const fragment = document.createDocumentFragment();
+  
+  breakdown.forEach(({ country, risk, riskBand, riskColor, countryCode }) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #e5e7eb;';
+    div.innerHTML = `
       <div style="flex: 1;">
         <span style="font-weight: 500;">${country?.name || countryCode}</span>
         <span style="font-size: 12px; color: #6b7280; margin-left: 8px;">(${countryCode})</span>
@@ -2104,8 +2140,11 @@ export function updateRiskBreakdown(selectedCountries, countries, countryRisks) 
           ${riskBand}
         </span>
       </div>
-    </div>
-  `).join('');
+    `;
+    fragment.appendChild(div);
+  });
+  
+  container.appendChild(fragment);
 }
 
 // Panel 6 Cost Analysis (only if enabled)
@@ -2194,18 +2233,15 @@ export function createCostAnalysisPanel(containerId, options) {
       : []
   };
 
-  const getAuditCoverage = (allocation) => {
-    if (!Array.isArray(allocation)) return 0;
-    const announced = Number.isFinite(allocation[2]) ? Math.max(0, allocation[2]) : 0;
-    const unannounced = Number.isFinite(allocation[3]) ? Math.max(0, allocation[3]) : 0;
-    return announced + unannounced;
-  };
+  const currentAuditCoverage = computeAuditCoverageFromAllocation(hrddStrategy);
+  const fallbackAuditCoverage = computeAuditCoverageFromAllocation(safeBudgetData.currentAllocation);
 
-  const currentAuditCoverage = getAuditCoverage(hrddStrategy);
-  const fallbackAuditCoverage = getAuditCoverage(safeBudgetData.currentAllocation);
-  const auditCoverageTarget = enforceSocialAuditConstraint
-    ? Math.max(0, Math.min(100, currentAuditCoverage > 0 ? currentAuditCoverage : fallbackAuditCoverage))
-    : null;
+  // Use current coverage if valid, otherwise use fallback, cap at 100%
+  let auditCoverageTarget = null;
+  if (enforceSocialAuditConstraint) {
+    const baseValue = currentAuditCoverage > 0.1 ? currentAuditCoverage : fallbackAuditCoverage;
+    auditCoverageTarget = Math.max(0, Math.min(100, baseValue));
+  }
 
   const strategyCount = Array.isArray(riskEngine?.hrddStrategyLabels)
     ? riskEngine.hrddStrategyLabels.length

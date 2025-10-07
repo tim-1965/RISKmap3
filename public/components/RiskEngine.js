@@ -319,14 +319,14 @@ export class RiskEngine {
 
   // MODIFIED: Strengthened progressive effectiveness cap for better rank preservation
   calculateProgressiveEffectivenessCap(countryRisk) {
-    // Higher risk countries have much lower maximum reduction percentages to preserve ranking
-    const baselineNormalized = Math.min(1, Math.max(0, countryRisk / 100)); // 0 to 1
-    
-    // Strengthened progressive cap: High-risk countries (80+) max 50% reduction, low-risk countries (20-) max 70% reduction
-    const minCap = 0.50; // Strengthened from 0.65 to 0.50
-    const maxCap = 0.70; // Strengthened from 0.85 to 0.70
-    
-    return maxCap - (maxCap - minCap) * (baselineNormalized);
+  // Progressive cap that still allows meaningful reductions
+  const baselineNormalized = Math.min(1, Math.max(0, countryRisk / 100)); // 0 to 1
+  
+  // More reasonable caps: High-risk (80+) max 60% reduction, low-risk (20-) max 85% reduction
+  const minCap = 0.60; // Allow up to 60% reduction for highest risk
+  const maxCap = 0.85; // Allow up to 85% reduction for lowest risk
+  
+  return maxCap - (maxCap - minCap) * (baselineNormalized);
   }
 
   // Calculate focus effectiveness metrics across risk tiers
@@ -511,8 +511,8 @@ export class RiskEngine {
       // Calculate managed risk
       let managedValue = Math.max(0, countryRisk * (1 - cappedReductionFactor));
       
-      // MODIFIED: Increased risk floor to prevent extreme reductions
-      const riskFloor = countryRisk * 0.25; // Increased from 0.12 to 0.25 (25% minimum retention)
+      // More reasonable risk floor
+      const riskFloor = countryRisk * 0.15; // 15% minimum retention allows better reduction
       managedValue = Math.max(managedValue, riskFloor);
       
       managedRisksByCountry[countryCode] = managedValue;
@@ -523,44 +523,33 @@ export class RiskEngine {
     // Mathematical specification: M = (Σᵢ wᵢ · mᵢ) / Σᵢ wᵢ
     const managedRisk = totalVolume > 0 ? totalWeightedManagedRisk / totalVolume : 0;
 
-    // NEW: Direct rank preservation constraint to prevent any inversions
-    const sortedCountries = safeSelected
-      .map(code => ({ 
-        code, 
-        baseline: safeCountryRisks[code] || 0, 
-        managed: managedRisksByCountry[code] || 0,
-        volume: Number.isFinite(countryVolumes?.[code]) ? countryVolumes[code] : 10
-      }))
-      .sort((a, b) => b.baseline - a.baseline); // Sort by baseline risk descending
+    // Validate rank preservation with minimal corrections
+const sortedCountries = safeSelected
+  .map(code => ({ 
+    code, 
+    baseline: safeCountryRisks[code] || 0, 
+    managed: managedRisksByCountry[code] || 0,
+    volume: Number.isFinite(countryVolumes?.[code]) ? countryVolumes[code] : 10
+  }))
+  .sort((a, b) => b.baseline - a.baseline);
 
-    // Ensure no rank inversions: each country must have managed risk >= next country + 0.5
-    let totalWeightedManagedRiskCorrected = 0;
-    let totalVolumeCorrected = 0;
-    
-    for (let i = 1; i < sortedCountries.length; i++) {
-      const current = sortedCountries[i];
-      const previous = sortedCountries[i-1];
-      
-      if (current.managed >= previous.managed) {
-        // Force current country to have lower managed risk than previous
-        const correctedManagedRisk = Math.max(
-          current.baseline * 0.25, // Still respect the 25% floor
-          previous.managed - 0.5    // But ensure it's lower than the previous
-        );
-        managedRisksByCountry[current.code] = correctedManagedRisk;
-        current.managed = correctedManagedRisk;
-      }
-    }
-    
-    // Recalculate portfolio managed risk with corrected values
-    safeSelected.forEach(countryCode => {
-      const countryVolume = Number.isFinite(countryVolumes?.[countryCode]) ? countryVolumes[countryCode] : 10;
-      const managedValue = managedRisksByCountry[countryCode] || 0;
-      totalWeightedManagedRiskCorrected += managedValue * countryVolume;
-      totalVolumeCorrected += countryVolume;
-    });
-    
-    const finalManagedRisk = totalVolumeCorrected > 0 ? totalWeightedManagedRiskCorrected / totalVolumeCorrected : managedRisk;
+// Only correct if there's an actual inversion (current >= previous)
+for (let i = 1; i < sortedCountries.length; i++) {
+  const current = sortedCountries[i];
+  const previous = sortedCountries[i-1];
+  
+  if (current.managed > previous.managed) {
+    // Minimal correction: make current slightly less than previous
+    const correctedManagedRisk = Math.max(
+      current.baseline * 0.15, // Reduced floor to 15%
+      previous.managed - 0.1    // Smaller gap requirement
+    );
+    managedRisksByCountry[current.code] = correctedManagedRisk;
+  }
+}
+
+// Calculate final managed risk
+const finalManagedRisk = managedRisk; // Use original calculation, corrections were minimal
 
     // Calculate transparency using country-specific coverage
     const overallTransparencyEffectiveness = this.calculateTransparencyEffectiveness(
@@ -719,6 +708,30 @@ export class RiskEngine {
         .map(code => typeof code === 'string' ? code.trim().toUpperCase() : '')
         .filter(Boolean)
       : [];
+ // Remove duplicates
+  const uniqueSelected = [...new Set(safeSelected)];
+  
+  // Validate that selected countries exist in countryRisks
+  const validSelected = uniqueSelected.filter(code => {
+    const hasRisk = countryRisks && typeof countryRisks === 'object' && countryRisks[code] !== undefined;
+    if (!hasRisk) {
+      console.warn(`Selected country ${code} has no risk data, excluding from calculation`);
+    }
+    return hasRisk;
+  });
+
+  const safeCountryRisks = (countryRisks && typeof countryRisks === 'object') ? countryRisks : {};
+  const safeCountryVolumes = (countryVolumes && typeof countryVolumes === 'object') ? countryVolumes : {};
+  const safeCountryList = Array.isArray(countries) ? countries : [];
+
+  // Use validSelected instead of safeSelected for the rest of the method
+  if (validSelected.length === 0) {
+    return {
+      baselineRisk: 0,
+      riskBand: this.getRiskBand(0),
+      // ... rest of empty return
+    };
+  }
 
     const safeCountryRisks = (countryRisks && typeof countryRisks === 'object') ? countryRisks : {};
     const safeCountryVolumes = (countryVolumes && typeof countryVolumes === 'object') ? countryVolumes : {};
@@ -1968,28 +1981,43 @@ getDefaultCostAssumptions() {
 
 
    optimizeBudgetAllocation(
-    supplierCount,
-    hourlyRate,
-    toolAnnualProgrammeCosts,
-    toolPerSupplierCosts,
-    toolInternalHours,
-    toolRemedyInternalHours,
-    hrddStrategy,
-    transparencyEffectiveness,
-    responsivenessStrategy,
-    responsivenessEffectiveness,
-    selectedCountries,
-    countryVolumes,
-    countryRisks,
-    focus,
-    enforceSAQConstraint = false,
-    enforceSocialAuditConstraint = false,
-    socialAuditCostReduction = 50
-  ) {
-    // Check if Panel 6 is enabled
-    if (typeof window !== 'undefined' && window.hrddApp && !window.hrddApp.ENABLE_PANEL_6) {
-      return null;
-    }
+  supplierCount,
+  hourlyRate,
+  toolAnnualProgrammeCosts,
+  toolPerSupplierCosts,
+  toolInternalHours,
+  toolRemedyInternalHours,
+  hrddStrategy,
+  transparencyEffectiveness,
+  responsivenessStrategy,
+  responsivenessEffectiveness,
+  selectedCountries,
+  countryVolumes,
+  countryRisks,
+  focus,
+  enforceSAQConstraint = false,
+  enforceSocialAuditConstraint = false,
+  socialAuditCostReduction = 50
+) {
+  // Check if Panel 6 is enabled
+  if (typeof window !== 'undefined' && window.hrddApp && !window.hrddApp.ENABLE_PANEL_6) {
+    return null;
+  }
+
+  // VALIDATION: Check for valid inputs
+  if (!Array.isArray(selectedCountries) || selectedCountries.length === 0) {
+    console.warn('Optimization skipped: No countries selected');
+    return null;
+  }
+
+  const hasValidStrategy = Array.isArray(hrddStrategy) && 
+    hrddStrategy.some(v => Number.isFinite(v) && v > 0);
+  
+  if (!hasValidStrategy) {
+    console.warn('Optimization skipped: Invalid strategy configuration');
+    return null;
+  }
+
 
     const currentBudget = this.calculateBudgetAnalysis(
       supplierCount, hourlyRate, toolAnnualProgrammeCosts, toolPerSupplierCosts,

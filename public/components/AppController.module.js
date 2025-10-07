@@ -222,10 +222,37 @@ export class AppController {
     return sanitized;
   }
   
+// Add after the normalizers section, around line 280
+safeCalculation(calculationFn, errorMessage = 'Calculation failed') {
+  try {
+    calculationFn();
+  } catch (error) {
+    console.error(errorMessage, error);
+    this.state.error = `${errorMessage}: ${error.message}`;
+    // Don't let one calculation failure break the whole app
+    this.render();
+  }
+}
+
   clamp01(v) {
     const n = parseFloat(v);
     if (!Number.isFinite(n)) return 0;
     return Math.max(0, Math.min(1, n));
+  }
+
+  /* ------------------------- Error Handling ------------------------- */
+
+  safeCalculation(calculationFn, errorMessage = 'Calculation failed') {
+    try {
+      calculationFn();
+    } catch (error) {
+      console.error(errorMessage, error);
+      this.state.error = `${errorMessage}: ${error.message}`;
+      // Don't let one calculation failure break the whole app
+      if (this.containerElement) {
+        this.render();
+      }
+    }
   }
 
   /* ----------------------------- Init ------------------------------- */
@@ -260,12 +287,16 @@ export class AppController {
       this.state.countries = Array.isArray(countries) ? countries : [];
 
       // Restore any prior state (if present)
-      this.loadSavedState();
+        const stateRestored = this.loadSavedState();
 
-      // Compute initial risks
-      this.calculateAllRisks();
-      this.calculateBaselineRisk();
-      this.calculateManagedRisk();
+        // Compute initial risks
+        this.calculateAllRisks();
+
+        // Only recalculate if we have selections or state was restored
+        if (stateRestored || this.state.selectedCountries.length > 0) {
+          this.calculateBaselineRisk();
+          this.calculateManagedRisk();
+}
 
       this.state.loading = false;
       this.state.lastUpdate = new Date().toISOString();
@@ -360,79 +391,134 @@ export class AppController {
     this.state.isDirty = true;
 
     this.weightsTimeout = setTimeout(() => {
-      this.calculateAllRisks();
-      this.calculateBaselineRisk();
-      this.calculateManagedRisk();
-      this.state.lastUpdate = new Date().toISOString();
-      this.updateUI();
-    }, 300);
+  this.safeCalculation(() => {
+    this.calculateAllRisks();
+    this.calculateBaselineRisk();
+    this.calculateManagedRisk();
+  }, 'Risk calculation after weight change failed');
+  this.state.lastUpdate = new Date().toISOString();
+  this.updateUI();
+}, 300);
   }
 
-  onCountrySelect(nextSelected) {
-    let updatedSelection;
+onCountrySelect(nextSelected) {
+  let updatedSelection;
 
-    if (Array.isArray(nextSelected)) {
-      updatedSelection = nextSelected
-        .map(code => (typeof code === 'string' ? code.trim().toUpperCase() : ''))
-        .filter(Boolean);
-    } else if (typeof nextSelected === 'string') {
-      const trimmed = nextSelected.trim().toUpperCase();
-      if (!trimmed) return;
-      const selectionSet = new Set(
-        Array.isArray(this.state.selectedCountries)
-          ? this.state.selectedCountries.map(code => (typeof code === 'string' ? code.trim().toUpperCase() : code))
-          : []
-      );
-      if (selectionSet.has(trimmed)) {
-        selectionSet.delete(trimmed);
-      } else {
-        selectionSet.add(trimmed);
-      }
-      updatedSelection = Array.from(selectionSet);
+  if (Array.isArray(nextSelected)) {
+    updatedSelection = nextSelected
+      .map(code => (typeof code === 'string' ? code.trim().toUpperCase() : ''))
+      .filter(Boolean);
+  } else if (typeof nextSelected === 'string') {
+    const trimmed = nextSelected.trim().toUpperCase();
+    if (!trimmed) return;
+    const selectionSet = new Set(
+      Array.isArray(this.state.selectedCountries)
+        ? this.state.selectedCountries.map(code => (typeof code === 'string' ? code.trim().toUpperCase() : code))
+        : []
+    );
+    if (selectionSet.has(trimmed)) {
+      selectionSet.delete(trimmed);
     } else {
-      updatedSelection = [];
+      selectionSet.add(trimmed);
     }
+    updatedSelection = Array.from(selectionSet);
+  } else {
+    updatedSelection = [];
+  }
 
-    this.state.selectedCountries = updatedSelection;
-    this.state.isDirty = true;
+  // **FIX: Clean up orphaned data for deselected countries**
+  const updatedSet = new Set(updatedSelection);
+  const previousSet = new Set(this.state.selectedCountries || []);
+  
+  // Find countries that were deselected
+  const deselected = [...previousSet].filter(code => !updatedSet.has(code));
+  
+  // Remove volumes for deselected countries
+  if (deselected.length > 0) {
+    const cleanedVolumes = { ...this.state.countryVolumes };
+    const cleanedManagedRisks = { ...this.state.countryManagedRisks };
+    
+    deselected.forEach(code => {
+      delete cleanedVolumes[code];
+      delete cleanedManagedRisks[code];
+    });
+    
+    this.state.countryVolumes = cleanedVolumes;
+    this.state.countryManagedRisks = cleanedManagedRisks;
+  }
 
-    // Recalculate baseline + managed on selection
+  // Update selection
+  this.state.selectedCountries = updatedSelection;
+  this.state.isDirty = true;
+
+  // **FIX: Force recalculation of all risks**
+  this.calculateAllRisks();
+  this.calculateBaselineRisk();
+  this.calculateManagedRisk();
+  
+  this.state.lastUpdate = new Date().toISOString();
+  
+  // **FIX: Full re-render instead of just updateUI**
+  this.render();
+}
+  
+
+ onVolumeChange(isoCode, volume) {
+  clearTimeout(this.volumeTimeout);
+  const normalized = typeof isoCode === 'string' ? isoCode.trim().toUpperCase() : isoCode;
+  const v = Math.max(0, parseFloat(volume) || 0);
+  
+  // **FIX: Only update volume if country is selected**
+  if (!this.state.selectedCountries.includes(normalized)) {
+    console.warn(`Attempted to set volume for unselected country: ${normalized}`);
+    return;
+  }
+  
+  this.state.countryVolumes = { ...this.state.countryVolumes, [normalized]: v };
+  this.state.isDirty = true;
+
+this.volumeTimeout = setTimeout(() => {
+  this.safeCalculation(() => {
     this.calculateBaselineRisk();
+    this.calculateManagedRisk();
+  }, 'Risk calculation after volume change failed');
+  this.state.lastUpdate = new Date().toISOString();
+  this.updateUI();
+}, 300);
+}
+
+    onHRDDStrategyChange(next) {
+  if (!Array.isArray(next)) return;
+  clearTimeout(this.strategyTimeout);
+
+  let updatedStrategy = [...next];
+  
+  // Enforce SAQ constraint if enabled
+  if (ENABLE_PANEL_6 && this.state.saqConstraintEnabled) {
+    const saqSum = updatedStrategy[4] + updatedStrategy[5];
+    if (Math.abs(saqSum - 100) > 0.1) {
+      // Proportionally adjust to maintain 100% total
+      if (saqSum > 0) {
+        const ratio = 100 / saqSum;
+        updatedStrategy[4] = updatedStrategy[4] * ratio;
+        updatedStrategy[5] = updatedStrategy[5] * ratio;
+      } else {
+        // Default split if both are zero
+        updatedStrategy[4] = 50;
+        updatedStrategy[5] = 50;
+      }
+    }
+  }
+  
+  this.state.hrddStrategy = updatedStrategy;
+  this.state.isDirty = true;
+
+  this.strategyTimeout = setTimeout(() => {
     this.calculateManagedRisk();
     this.state.lastUpdate = new Date().toISOString();
     this.updateUI();
-  }
-  
-
-  onVolumeChange(isoCode, volume) {
-    clearTimeout(this.volumeTimeout);
-    const v = Math.max(0, parseFloat(volume) || 0);
-    this.state.countryVolumes = { ...this.state.countryVolumes, [isoCode]: v };
-    this.state.isDirty = true;
-
-    this.volumeTimeout = setTimeout(() => {
-      this.calculateBaselineRisk();
-      this.calculateManagedRisk();
-      this.state.lastUpdate = new Date().toISOString();
-      this.updateUI();
-    }, 300);
-  }
-
-    onHRDDStrategyChange(next) {
-    if (!Array.isArray(next)) return;
-    clearTimeout(this.strategyTimeout);
-
-    const updatedStrategy = [...next];
-    this.state.hrddStrategy = updatedStrategy;
-
-    this.state.isDirty = true;
-
-    this.strategyTimeout = setTimeout(() => {
-      this.calculateManagedRisk();
-      this.state.lastUpdate = new Date().toISOString();
-      this.updateUI();
-    }, 300);
-  }
+  }, 300);
+}
 
   onTransparencyChange(next) {
     if (!Array.isArray(next)) return;
@@ -797,6 +883,80 @@ onSocialAuditCostReductionChange(percentage) {
       restoreView();
     }
    }
+updatePanel2Components() {
+  // Only update if we're on Panel 2 and container exists
+  if (this.state.currentPanel !== 2 || !this.containerElement) {
+    this.updateUI();
+    return;
+  }
+
+  // Update the map title with new baseline/managed values
+  const baselineRiskValue = Number.isFinite(this.state.baselineRisk)
+    ? this.state.baselineRisk.toFixed(1)
+    : 'N/A';
+  const managedRiskValue = Number.isFinite(this.state.managedRisk)
+    ? this.state.managedRisk.toFixed(1)
+    : 'N/A';
+
+  // Re-render specific components without full page render
+  queueMicrotask(() => {
+    const baselineMapTitle = `Click on countries to select them: current baseline risk = ${baselineRiskValue}`;
+    const baselineMapSubtitle = `Based on the assumptions, current managed risk = ${managedRiskValue}`;
+
+    // Update map
+    UIComponents.createWorldMap('baselineMapContainer', {
+      countries: this.state.countries,
+      countryRisks: this.state.countryRisks,
+      selectedCountries: this.state.selectedCountries,
+      onCountrySelect: this.onCountrySelect,
+      title: baselineMapTitle,
+      subtitle: baselineMapSubtitle,
+      height: 500,
+      width: 1200
+    });
+
+    // Update country selection display
+    UIComponents.updateSelectedCountriesDisplay(
+      this.state.selectedCountries,
+      this.state.countries,
+      this.state.countryVolumes,
+      this.onCountrySelect,
+      this.onVolumeChange
+    );
+
+    // Update results panel
+    UIComponents.createResultsPanel('resultsPanel', {
+      selectedCountries: this.state.selectedCountries,
+      countries: this.state.countries,
+      countryRisks: this.state.countryRisks,
+      baselineRisk: this.state.baselineRisk
+    });
+  });
+
+  // Update header stats
+  const apiIndicator = this.containerElement.querySelector('#hrddApiIndicator');
+  if (apiIndicator) {
+    apiIndicator.style.backgroundColor = this.state.apiHealthy ? '#22c55e' : '#ef4444';
+  }
+
+  const selectedCountEl = this.containerElement.querySelector('#hrddSelectedCount');
+  if (selectedCountEl) {
+    selectedCountEl.textContent = this.state.selectedCountries.length;
+  }
+
+  const lastUpdatedGroup = this.containerElement.querySelector('#hrddLastUpdatedGroup');
+  const lastUpdatedEl = this.containerElement.querySelector('#hrddLastUpdated');
+  if (lastUpdatedGroup && lastUpdatedEl && this.state.lastUpdate) {
+    let formatted = '';
+    try {
+      formatted = new Date(this.state.lastUpdate).toLocaleTimeString();
+    } catch (error) {
+      formatted = '';
+    }
+    lastUpdatedGroup.style.display = 'flex';
+    lastUpdatedEl.textContent = formatted ? `Best on larger screens. Updated: ${formatted}` : '';
+  }
+}
 
   handleWheelScroll(event) {
     const main = this.mainScrollElement || (event && event.currentTarget) || null;
