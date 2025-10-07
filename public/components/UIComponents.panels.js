@@ -2419,6 +2419,7 @@ export function createCostAnalysisPanel(containerId, options) {
               <h4 style="font-size: ${responsive('16px', '18px')}; font-weight: 600; color: #1f2937; margin: 0 0 ${responsive('12px', '16px')} 0; text-align: center;">Optimization outcome</h4>
               <div style="display: grid; grid-template-columns: ${responsive('1fr', 'repeat(3, minmax(0, 1fr))')}; gap: ${responsive('12px', '16px')}; align-items: stretch;">
                 <div style="padding: ${responsive('14px', '20px')}; border-radius: 12px; border: 3px solid ${baselineColor}; background-color: ${baselineColor}15; text-align: center;">
+                  <div style="font-size: ${responsive('11px', '12px')}; font-weight: 600; color: #4b5563; margin-bottom: 6px;">BASELINE RISK</div>
                   <div id="${baselineRiskElementId}" style="font-size: ${responsive('28px', '36px')}; font-weight: 700; color: ${baselineColor}; margin-bottom: 4px;">${baselineRiskDisplay}</div>
                   <div style="font-size: ${responsive('12px', '14px')}; font-weight: 600; color: ${baselineColor};">Risk Level</div>
                   <div style="font-size: ${responsive('11px', '12px')}; color: #4b5563; margin-top: 6px;">Current baseline exposure</div>
