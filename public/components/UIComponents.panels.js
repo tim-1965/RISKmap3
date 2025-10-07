@@ -1820,7 +1820,7 @@ export function createWeightingsPanel(containerId, { weights, onWeightsChange })
       url: 'https://freedomhouse.org/reports/freedom-world'
     },
     {
-      label: 'World Justic Project - Rule of Law Index (using 4.8: Fundamental Labour Rights)',
+      label: 'World Justice Project - Rule of Law Index (using 4.8: Fundamental Labour Rights)',
       description: 'Reflects fundamental labour rights performance from the World Justice Project Rule of Law Index.',
       sourceLabel: 'WJP Rule of Law Index – Fundamental Rights',
       url: 'https://worldjusticeproject.org/rule-of-law-index/global/2024/Fundamental%20Rights/'
