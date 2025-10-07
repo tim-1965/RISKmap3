@@ -701,38 +701,15 @@ const finalManagedRisk = managedRisk; // Use original calculation, corrections w
     return this.calculatePortfolioMetrics(selectedCountries, countryVolumes, countryRisks).baselineRisk;
   }
 
-  // Step 1: Generate a detailed baseline summary for the current selection
+   // Step 1: Generate a detailed baseline summary for the current selection
   generateBaselineSummary(selectedCountries, countries, countryRisks, countryVolumes) {
     const safeSelected = Array.isArray(selectedCountries)
       ? selectedCountries
         .map(code => typeof code === 'string' ? code.trim().toUpperCase() : '')
         .filter(Boolean)
       : [];
- // Remove duplicates
-  const uniqueSelected = [...new Set(safeSelected)];
-  
-  // Validate that selected countries exist in countryRisks
-  const validSelected = uniqueSelected.filter(code => {
-    const hasRisk = countryRisks && typeof countryRisks === 'object' && countryRisks[code] !== undefined;
-    if (!hasRisk) {
-      console.warn(`Selected country ${code} has no risk data, excluding from calculation`);
-    }
-    return hasRisk;
-  });
 
-  const safeCountryRisks = (countryRisks && typeof countryRisks === 'object') ? countryRisks : {};
-  const safeCountryVolumes = (countryVolumes && typeof countryVolumes === 'object') ? countryVolumes : {};
-  const safeCountryList = Array.isArray(countries) ? countries : [];
-
-  // Use validSelected instead of safeSelected for the rest of the method
-  if (validSelected.length === 0) {
-    return {
-      baselineRisk: 0,
-      riskBand: this.getRiskBand(0),
-      // ... rest of empty return
-    };
-  }
-
+    const uniqueSelected = [...new Set(safeSelected)];
     const safeCountryRisks = (countryRisks && typeof countryRisks === 'object') ? countryRisks : {};
     const safeCountryVolumes = (countryVolumes && typeof countryVolumes === 'object') ? countryVolumes : {};
     const safeCountryList = Array.isArray(countries) ? countries : [];
@@ -744,43 +721,54 @@ const finalManagedRisk = managedRisk; // Use original calculation, corrections w
       return acc;
     }, {});
 
-    if (safeSelected.length === 0) {
-      return {
-        baselineRisk: 0,
-        riskBand: this.getRiskBand(0),
-        riskColor: this.getRiskColor(0),
-        portfolio: {
-          countriesSelected: 0,
-          totalVolume: 0,
+    const validSelected = uniqueSelected.filter(code => {
+      const hasRisk = Object.prototype.hasOwnProperty.call(safeCountryRisks, code);
+      if (!hasRisk) {
+        console.warn(`Selected country ${code} has no risk data, excluding from calculation`);
+      }
+      return hasRisk;
+    });
+
+    const emptySummary = () => ({
+      baselineRisk: 0,
+      riskBand: this.getRiskBand(0),
+      riskColor: this.getRiskColor(0),
+      portfolio: {
+        countriesSelected: 0,
+        totalVolume: 0,
+        averageRisk: 0,
+        riskConcentration: 1,
+        weightedRisk: 0,
+        weightedRiskSquares: 0
+      },
+      distribution: {
+        byBand: {},
+        statistics: {
+          minRisk: 0,
+          maxRisk: 0,
           averageRisk: 0,
-          riskConcentration: 1,
-          weightedRisk: 0
-        },
-        distribution: {
-          byBand: {},
-          statistics: {
-            minRisk: 0,
-            maxRisk: 0,
-            averageRisk: 0,
-            medianRisk: 0
-          }
-        },
-        countries: [],
-        highlights: {
-          topRiskCountries: [],
-          topVolumeCountries: []
+          medianRisk: 0
         }
-      };
+      },
+      countries: [],
+      highlights: {
+        topRiskCountries: [],
+        topVolumeCountries: []
+      }
+    });
+
+    if (validSelected.length === 0) {
+      return emptySummary();
     }
 
-    const metrics = this.calculatePortfolioMetrics(safeSelected, countryVolumes, countryRisks);
+    const metrics = this.calculatePortfolioMetrics(validSelected, countryVolumes, countryRisks);
     const baselineRisk = Number.isFinite(metrics?.baselineRisk) ? metrics.baselineRisk : 0;
     const totalVolume = Number.isFinite(metrics?.totalVolume) ? metrics.totalVolume : 0;
     const riskConcentration = Number.isFinite(metrics?.riskConcentration) && metrics.riskConcentration > 0
       ? metrics.riskConcentration
       : 1;
 
-    const countryBreakdown = safeSelected.map(code => {
+    const countryBreakdown = validSelected.map(code => {
       const risk = Number.isFinite(safeCountryRisks[code]) ? safeCountryRisks[code] : 0;
       const volume = typeof safeCountryVolumes[code] === 'number' ? safeCountryVolumes[code] : 10;
       const countryInfo = countryLookup[code] || {};
@@ -826,7 +814,7 @@ const finalManagedRisk = managedRisk; // Use original calculation, corrections w
       riskBand: this.getRiskBand(baselineRisk),
       riskColor: this.getRiskColor(baselineRisk),
       portfolio: {
-        countriesSelected: safeSelected.length,
+        countriesSelected: validSelected.length,
         totalVolume,
         averageRisk: baselineRisk,
         riskConcentration,
