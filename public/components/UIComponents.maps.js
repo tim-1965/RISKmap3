@@ -1432,7 +1432,7 @@ export async function createGlobalRiskMap(containerId, { countries, countryRisks
       <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">${title}</h3>
       <div id="${loadingId}" style="padding: 40px; color: #6b7280;">
         <div>Loading global coverage-based risk map...</div>
-        <div style="font-size: 14px; margin-top: 8px;">Hover over countries to see their baseline risk levels before HRDD strategy application.</div>
+        <div style="font-size: 14px; margin-top: 8px;">Hover over countries to see their baseline risk levels before application of tools and efforts.</div>
       </div>
       <div id="${mapWrapperId}" style="width: 100%; display: flex; justify-content: center; margin-bottom: 16px;">
       </div>

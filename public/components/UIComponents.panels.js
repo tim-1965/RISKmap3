@@ -505,7 +505,7 @@ export function createHRDDStrategyPanel(containerId, { strategy, onStrategyChang
   container.innerHTML = `
     <div class="hrdd-strategy-panel" style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; height: 100%;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h2 style="font-size: 20px; font-weight: bold; color: #1f2937;">HRDD tools in use</h2>
+        <h2 style="font-size: 20px; font-weight: bold; color: #1f2937;">Labour rights DD tools in use</h2>
         <button id="resetStrategy" style="padding: 10px 20px; background-color: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
           Reset to Default
         </button>
@@ -1528,13 +1528,13 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
 
       <!-- RISK TRANSFORMATION EXPLANATION -->
       <div id="strategyTransformationSection" style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); margin-bottom: 24px;">
-        <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #1f2937;">How Your Use of HRDD Tools Reduces Risk</h3>
+        <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #1f2937;">How Your Use of Labour Rights DD Tools Reduces Risk</h3>
         
         <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 16px; margin-bottom: 20px;">
           <p style="font-size: 14px; margin: 0; color: #1e40af; line-height: 1.5;">
-            <strong>Your use of HRDD tools transforms baseline risk to managed risk through four key steps:</strong>
+            <strong>Your use of Labour Rights DD tools transforms baseline risk to managed risk through four key steps:</strong>
             (1) which tools are used with what coverage of your supplier base, (2) how reliably those tools detect issues,
-            (3) how effectively those tools enable sustained remedy once issues appear, and (4) how strongly they promote good conduct to prevent recurrence.
+            (3) how effectively those tools support sustained remedy, and (4) how strongly they promote good conduct to prevent recurrence.
           </p>
         </div>
 
@@ -1547,7 +1547,7 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
             <div style="flex: 1;">
               <div style="font-weight: 600; color: #92400e; margin-bottom: 4px;">Baseline Portfolio Risk</div>
               <div style="font-size: 24px; font-weight: bold; color: #92400e;">${formatNumber(baselineValue)}</div>
-              <div style="font-size: 12px; color: #a16207;">Starting risk level before enhanced HRDD strategy application</div>
+              <div style="font-size: 12px; color: #a16207;">Starting risk level</div>
             </div>
           </div>
 
@@ -1723,7 +1723,7 @@ export function createCountrySelectionPanel(containerId, { countries, selectedCo
         <ul style="font-size: 14px; margin: 0; padding-left: 16px; line-height: 1.5;">
           <li>Click countries on the map above to select them</li>
           <li>Or use the dropdown to add countries</li>
-          <li>Set weighting for each country (higher = more influence on risk)</li>
+          <li>Set weighting for each country (higher = more of your supply chain is here, more influence on risk)</li>
           <li>Click 'Remove' to deselect countries</li>
         </ul>
       </div>
@@ -1791,8 +1791,7 @@ export function createResultsPanel(containerId, { selectedCountries, countries, 
       <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; color: #0369a1; padding: 16px; border-radius: 8px;">
         <h4 style="font-weight: 600; margin-bottom: 8px; color: #1e3a8a;">Next Steps:</h4>
         <p style="font-size: 14px; margin: 0; line-height: 1.5;">
-          This baseline risk will be used in Panels 3-4 to configure enhanced HRDD strategies and
-          in Panel 5 to calculate managed risk levels with intelligent focus-based allocation.
+          This baseline risk will be used as the starting point for the analysis in Panel 5 to calculate your managed risk levels given the tools you use and how effective they are.
         </p>
       </div>
     </div>
@@ -2007,7 +2006,7 @@ export function updateSelectedCountriesDisplay(selectedCountries, countries, cou
       <div style="padding: 24px; border: 2px dashed #cbd5f5; border-radius: 12px; background-color: #eff6ff; text-align: center; color: #1d4ed8;">
         <div style="font-size: 40px; margin-bottom: 12px;">🌍</div>
         <p style="font-size: 14px; margin-bottom: 4px;">No countries selected yet.</p>
-        <p style="font-size: 13px; color: #1e3a8a;">Click on the map or use the dropdown above to add countries to your HRDD portfolio.</p>
+        <p style="font-size: 13px; color: #1e3a8a;">Click on the map or use the dropdown above to add countries to your supply chain.</p>
       </div>
     `;
     return;
@@ -2044,7 +2043,7 @@ export function updateSelectedCountriesDisplay(selectedCountries, countries, cou
       </div>
       <div style="display: flex; align-items: center; gap: 12px;">
         <div style="display: flex; align-items: center; gap: 6px;">
-          <label style="font-size: 14px; color: #6b7280; font-weight: 500;">Weighting:</label>
+          <label style="font-size: 14px; color: #6b7280; font-weight: 500;">Weighting (how much of your supply chain is here?):</label>
           <input type="number" min="0" value="${currentVolume}" id="volume_${countryCode}"
                  style="width: 80px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; text-align: center;">
         </div>
@@ -2533,7 +2532,7 @@ export function createCostAnalysisPanel(containerId, options) {
         <div style="display: grid; grid-template-columns: 1fr; gap: ${responsive('12px', '24px')}; align-items: stretch;">
           <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-              <h3 style="font-size: 16px; font-weight: 600; color: #1f2937; margin: 0;">Panel 3: HRDD Tools</h3>
+              <h3 style="font-size: 16px; font-weight: 600; color: #1f2937; margin: 0;">Panel 3: Labour Rights DD Tools</h3>
               <button id="resetToolCosts" style="padding: 6px 12px; background: #6b7280; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">
                 Reset to Default
               </button>
@@ -2560,7 +2559,7 @@ export function createCostAnalysisPanel(containerId, options) {
             <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #374151;">
               <thead>
                 <tr style="background: #fde68a; text-align: left;">
-                  <th style="padding: 10px 12px; font-weight: 600; color: #1f2937;">HRDD Tool</th>
+                  <th style="padding: 10px 12px; font-weight: 600; color: #1f2937;">Labour rights DD Tool</th>
                   <th style="padding: 10px 12px; font-weight: 600; color: #1f2937; text-align: right;">Remedy Effort (hours per supplier per year)</th>
                 </tr>
               </thead>
