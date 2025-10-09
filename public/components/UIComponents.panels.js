@@ -2980,11 +2980,31 @@ function renderOptimizationResults(optimization, budgetData, baselineRisk, manag
     Math.round(normalizeCurrencyValue(optimization?.finalBudget, currentTotalBudget))
   );
 
+  const formatCurrency = (value) => {
+    const numeric = Number.isFinite(value) ? Math.round(value) : 0;
+    const sign = numeric < 0 ? '-' : '';
+    return `${sign}$${Math.abs(numeric).toLocaleString()}`;
+  };
+
+  const formatDelta = (value) => {
+    const numeric = Number.isFinite(value) ? Math.round(value) : 0;
+    if (numeric === 0) {
+      return '$0';
+    }
+    const sign = numeric > 0 ? '+' : '-';
+    return `${sign}$${Math.abs(numeric).toLocaleString()}`;
+  };
+
+  const budgetDeltaValue = optimizedTotalBudget - currentTotalBudget;
+  const budgetDeltaColor = budgetDeltaValue < 0 ? '#16a34a' : budgetDeltaValue > 0 ? '#dc2626' : '#6b7280';
+  const budgetDeltaLabel = budgetDeltaValue < 0 ? 'Reduction' : budgetDeltaValue > 0 ? 'Increase' : 'No change';
+
   const optimizationStatus = optimization.alreadyOptimized
     ? { color: '#22c55e', text: 'Previously optimized', icon: '✓' }
     : optimization.optimizationRun
       ? { color: '#3b82f6', text: 'Newly optimized', icon: '🔄' }
       : { color: '#ef4444', text: 'Not optimized', icon: '○' };
+
 
 return `
     <div style="display: flex; flex-direction: column; gap: ${responsive('16px', '20px')};">
@@ -3039,47 +3059,64 @@ return `
              <div style="font-size: ${responsive('11px', '12px')}; color: #4b5563; margin-top: 6px;">Difference vs current setup</div>
           </div>
         </div>
-        <div style="margin-top: ${responsive('12px', '16px')}; display: grid; grid-template-columns: ${responsive('1fr', '1fr 1fr')}; gap: ${responsive('12px', '16px')};">
-          <div style="background: white; padding: ${responsive('14px', '16px')}; border-radius: 8px; border: 2px solid #dc2626; text-align: center; color: #991b1b;">
-            <div style="font-size: 12px; margin-bottom: 4px;">CURRENT TOTAL BUDGET</div>
-            <div style="font-size: ${responsive('18px', '20px')}; font-weight: bold;">$${currentTotalBudget.toLocaleString()}</div>
+       <div style="margin-top: ${responsive('12px', '16px')}; display: flex; flex-direction: column; gap: ${responsive('12px', '16px')};">
+          <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: ${responsive('20px', '28px')}; border-radius: 16px; border: 1px solid #6ee7b7; box-shadow: 0 10px 20px rgba(13, 148, 136, 0.12); width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: ${responsive('16px', '20px')}; flex-wrap: wrap; gap: 8px;">
+              <h4 style="font-size: ${responsive('16px', '20px')}; font-weight: 700; color: #065f46; margin: 0; letter-spacing: 0.01em; text-transform: uppercase;">Recommended Tool Allocation</h4>
+              <span style="font-size: ${responsive('11px', '12px')}; font-weight: 600; color: #0f766e; background: rgba(15, 118, 110, 0.08); padding: 6px 12px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.08em;">Optimized Mix</span>
+            </div>
+            <div style="background: rgba(255, 255, 255, 0.7); border-radius: 12px; padding: ${responsive('12px', '16px')}; border: 1px solid rgba(110, 231, 183, 0.6); width: 100%;">
+              <div style="display: grid; grid-template-columns: minmax(0, 1.8fr) repeat(3, minmax(70px, 1fr)); gap: ${responsive('10px', '14px')}; align-items: center; font-size: ${responsive('12px', '14px')}; font-weight: 600; color: #047857; text-transform: uppercase; letter-spacing: 0.06em;">
+                <div>Tool</div>
+                <div style="text-align: center;">Current</div>
+                <div style="text-align: center;">Optimized</div>
+                <div style="text-align: right;">Change</div>
+              </div>
+              <div style="margin-top: ${responsive('10px', '12px')}; display: grid; gap: ${responsive('8px', '10px')};">
+                ${riskEngine.hrddStrategyLabels.map((label, index) => {
+                  const current = currentAllocation[index] || 0;
+                  const optimized = optimizedToolAllocation[index] || 0;
+                  const change = optimized - current;
+                  const changeColor = change > 0 ? '#16a34a' : change < 0 ? '#dc2626' : '#6b7280';
+                  const changeSign = change > 0 ? '+' : '';
+                  const arrow = change > 0 ? '▲' : change < 0 ? '▼' : '■';
+                  const arrowColor = change > 0 ? '#16a34a' : change < 0 ? '#dc2626' : '#6b7280';
+                  return `
+                    <div style="display: grid; grid-template-columns: minmax(0, 1.8fr) repeat(3, minmax(70px, 1fr)); gap: ${responsive('10px', '14px')}; align-items: center; font-size: ${responsive('12px', '14px')}; background: rgba(236, 253, 245, 0.7); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: ${responsive('10px', '12px')};">
+                      <span style="color: #065f46; font-weight: 600;">${label}</span>
+                      <span style="color: #0f766e; text-align: center; font-weight: 600;">${current.toFixed(0)}%</span>
+                      <span style="color: #047857; text-align: center; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <span style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(15, 118, 110, 0.12); color: ${arrowColor}; font-size: 12px; font-weight: 700;">${arrow}</span>
+                        ${optimized.toFixed(0)}%
+                      </span>
+                      <span style="color: ${changeColor}; text-align: right; font-weight: 700;">${changeSign}${change.toFixed(0)}%</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
           </div>
-          <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: ${responsive('20px', '28px')}; border-radius: 16px; border: 1px solid #6ee7b7; box-shadow: 0 10px 20px rgba(13, 148, 136, 0.12);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: ${responsive('16px', '20px')};">
-          <h4 style="font-size: ${responsive('16px', '20px')}; font-weight: 700; color: #065f46; margin: 0; letter-spacing: 0.01em; text-transform: uppercase;">Recommended Tool Allocation</h4>
-          <span style="font-size: ${responsive('11px', '12px')}; font-weight: 600; color: #0f766e; background: rgba(15, 118, 110, 0.08); padding: 6px 12px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.08em;">Optimized Mix</span>
+          <div style="background: white; border: 1px solid #d1fae5; border-radius: 12px; padding: ${responsive('16px', '20px')}; display: flex; flex-direction: column; gap: ${responsive('12px', '16px')}; box-shadow: 0 4px 12px rgba(15, 118, 110, 0.08);">
+            <div style="display: flex; align-items: center; gap: 8px; color: #065f46; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: ${responsive('12px', '13px')};">
+              <span>Budget Impact Overview</span>
+            </div>
+            <div style="display: grid; grid-template-columns: ${responsive('1fr', 'repeat(3, minmax(0, 1fr))')}; gap: ${responsive('12px', '16px')};">
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: ${responsive('12px', '16px')}; text-align: center; color: #047857;">
+                <div style="font-size: ${responsive('11px', '12px')}; font-weight: 600; text-transform: uppercase; margin-bottom: 6px;">Current Budget</div>
+                <div style="font-size: ${responsive('18px', '22px')}; font-weight: 700;">${formatCurrency(currentTotalBudget)}</div>
+              </div>
+              <div style="background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 10px; padding: ${responsive('12px', '16px')}; text-align: center; color: ${budgetDeltaColor};">
+                <div style="font-size: ${responsive('11px', '12px')}; font-weight: 600; text-transform: uppercase; margin-bottom: 6px;">Budget Delta</div>
+                <div style="font-size: ${responsive('18px', '22px')}; font-weight: 700;">${formatDelta(budgetDeltaValue)}</div>
+                <div style="font-size: ${responsive('11px', '12px')}; font-weight: 500; color: ${budgetDeltaColor};">${budgetDeltaLabel}</div>
+              </div>
+              <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: ${responsive('12px', '16px')}; text-align: center; color: #3730a3;">
+                <div style="font-size: ${responsive('11px', '12px')}; font-weight: 600; text-transform: uppercase; margin-bottom: 6px;">Optimized Budget</div>
+                <div style="font-size: ${responsive('18px', '22px')}; font-weight: 700;">${formatCurrency(optimizedTotalBudget)}</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div style="background: rgba(255, 255, 255, 0.7); border-radius: 12px; padding: ${responsive('12px', '16px')}; border: 1px solid rgba(110, 231, 183, 0.6); max-height: ${responsive('220px', '260px')}; overflow-y: auto;">
-          <div style="display: grid; grid-template-columns: minmax(0, 1.8fr) repeat(3, minmax(70px, 1fr)); gap: ${responsive('10px', '14px')}; align-items: center; font-size: ${responsive('12px', '14px')}; font-weight: 600; color: #047857; text-transform: uppercase; letter-spacing: 0.06em;">
-            <div>Tool</div>
-            <div style="text-align: center;">Current</div>
-            <div style="text-align: center;">Optimized</div>
-            <div style="text-align: right;">Change</div>
-          </div>
-          <div style="margin-top: ${responsive('10px', '12px')}; display: grid; gap: ${responsive('8px', '10px')};">
-            ${riskEngine.hrddStrategyLabels.map((label, index) => {
-              const current = currentAllocation[index] || 0;
-              const optimized = optimizedToolAllocation[index] || 0;
-              const change = optimized - current;
-              const changeColor = change > 0 ? '#16a34a' : change < 0 ? '#dc2626' : '#6b7280';
-              const changeSign = change > 0 ? '+' : '';
-              const arrow = change > 0 ? '▲' : change < 0 ? '▼' : '■';
-              const arrowColor = change > 0 ? '#16a34a' : change < 0 ? '#dc2626' : '#6b7280';
-              return `
-                <div style="display: grid; grid-template-columns: minmax(0, 1.8fr) repeat(3, minmax(70px, 1fr)); gap: ${responsive('10px', '14px')}; align-items: center; font-size: ${responsive('12px', '14px')}; background: rgba(236, 253, 245, 0.7); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: ${responsive('10px', '12px')};">
-                  <span style="color: #065f46; font-weight: 600;">${label}</span>
-                  <span style="color: #0f766e; text-align: center; font-weight: 600;">${current.toFixed(0)}%</span>
-                  <span style="color: #047857; text-align: center; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(15, 118, 110, 0.12); color: ${arrowColor}; font-size: 12px; font-weight: 700;">${arrow}</span>
-                    ${optimized.toFixed(0)}%
-                  </span>
-                  <span style="color: ${changeColor}; text-align: right; font-weight: 700;">${changeSign}${change.toFixed(0)}%</span>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        </div>
-       </div>
     </div>
   `;
 }
