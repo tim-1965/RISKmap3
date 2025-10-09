@@ -24,12 +24,17 @@ function parseEditableNumber(value) {
   }
 
   const trimmed = String(value).trim();
-  if (trimmed === '') {
+  if (trimmed === '' || trimmed === '-' || trimmed === '+') {
     return null;
   }
 
-  if (trimmed.endsWith('.') || trimmed === '-' || trimmed === '+') {
-    return null;
+  // Allow trailing decimal for intermediate input states
+  if (trimmed.endsWith('.')) {
+    // Check if what comes before the decimal is valid
+    const beforeDecimal = trimmed.slice(0, -1);
+    if (beforeDecimal && !isNaN(beforeDecimal)) {
+      return null; // Valid intermediate state, don't parse yet
+    }
   }
 
   const parsed = Number(trimmed);
@@ -2589,8 +2594,8 @@ export function createCostAnalysisPanel(containerId, options) {
           </div>
           <div style="background: white; padding: 16px; border-radius: 8px; border: 1px solid #e0f2fe;">
             <div style="font-size: 12px; color: #0369a1; margin-bottom: 4px;">INTERNAL COSTS</div>
-            <div style="font-size: 20px; font-weight: bold; color: #0c4a6e;">$${totalInternalCost.toLocaleString()}</div>
-            <div style="font-size: 11px; color: #0c4a6e; margin-top: 6px;">Detection: $${(normalizedBudgetData.totalDetectionInternalCost || 0).toLocaleString()} · Remedy: $${(normalizedBudgetData.totalRemedyInternalCost || 0).toLocaleString()}</div>
+            <div style="font-size: 20px; font-weight: bold; color: #0c4a6e;">$${Math.round(totalInternalCost).toLocaleString()}</div>
+            <div style="font-size: 11px; color: #0c4a6e; margin-top: 6px;">Detection: $${Math.round(normalizedBudgetData.totalDetectionInternalCost || 0).toLocaleString()} · Remedy: $${Math.round(normalizedBudgetData.totalRemedyInternalCost || 0).toLocaleString()}</div>
           </div>
           <div style="background: white; padding: 16px; border-radius: 8px; border: 1px solid #e0f2fe;">
             <div style="font-size: 12px; color: #0369a1; margin-bottom: 4px;">TOTAL BUDGET</div>
@@ -2691,20 +2696,23 @@ const updateRiskSummaryValues = (baseline, managed, optimized) => {
     currentManagedRiskValue = nextManaged;
     currentOptimizedRiskValue = nextOptimized;
 
-    const baselineElement = document.getElementById(baselineRiskElementId);
-    if (baselineElement) {
-      baselineElement.textContent = formatRiskLevel(currentBaselineRiskValue);
-    }
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      const baselineElement = document.getElementById(baselineRiskElementId);
+      if (baselineElement) {
+        baselineElement.textContent = formatRiskLevel(currentBaselineRiskValue);
+      }
 
-    const managedElement = document.getElementById(managedRiskElementId);
-    if (managedElement) {
-      managedElement.textContent = formatRiskLevel(currentManagedRiskValue);
-    }
+      const managedElement = document.getElementById(managedRiskElementId);
+      if (managedElement) {
+        managedElement.textContent = formatRiskLevel(currentManagedRiskValue);
+      }
 
-    const optimizedElement = document.getElementById(optimizedRiskElementId);
-    if (optimizedElement) {
-      optimizedElement.textContent = formatRiskLevel(currentOptimizedRiskValue);
-    }
+      const optimizedElement = document.getElementById(optimizedRiskElementId);
+      if (optimizedElement) {
+        optimizedElement.textContent = formatRiskLevel(currentOptimizedRiskValue);
+      }
+    });
   };
 
   updateRiskSummaryValues(
@@ -3036,31 +3044,40 @@ return `
             <div style="font-size: 12px; margin-bottom: 4px;">CURRENT TOTAL BUDGET</div>
             <div style="font-size: ${responsive('18px', '20px')}; font-weight: bold;">$${currentTotalBudget.toLocaleString()}</div>
           </div>
-          <div style="background: white; padding: ${responsive('14px', '16px')}; border-radius: 8px; border: 2px solid #16a34a; text-align: center; color: #14532d;">
-            <div style="font-size: 12px; margin-bottom: 4px;">OPTIMIZED TOTAL BUDGET</div>
-            <div style="font-size: ${responsive('18px', '20px')}; font-weight: bold;">$${optimizedTotalBudget.toLocaleString()}</div>
-          </div>
+          <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: ${responsive('20px', '28px')}; border-radius: 16px; border: 1px solid #6ee7b7; box-shadow: 0 10px 20px rgba(13, 148, 136, 0.12);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: ${responsive('16px', '20px')};">
+          <h4 style="font-size: ${responsive('16px', '20px')}; font-weight: 700; color: #065f46; margin: 0; letter-spacing: 0.01em; text-transform: uppercase;">Recommended Tool Allocation</h4>
+          <span style="font-size: ${responsive('11px', '12px')}; font-weight: 600; color: #0f766e; background: rgba(15, 118, 110, 0.08); padding: 6px 12px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.08em;">Optimized Mix</span>
         </div>
-      </div>
-
-      <div style="background: white; padding: ${responsive('16px', '24px')}; border-radius: 12px; border: 1px solid #d1fae5; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
-        <h4 style="font-size: 14px; font-weight: 600; color: #14532d; margin: 0 0 12px 0;">Recommended Tool Allocation</h4>
-        <div style="max-height: ${responsive('220px', '260px')}; overflow-y: auto;">
-          ${riskEngine.hrddStrategyLabels.map((label, index) => {
-            const current = currentAllocation[index] || 0;
-            const optimized = optimizedToolAllocation[index] || 0;
-            const change = optimized - current;
-            const changeColor = change > 0 ? '#16a34a' : change < 0 ? '#dc2626' : '#6b7280';
-            const changeSign = change > 0 ? '+' : '';
-            return `
-               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; gap: 8px;">
-                <span style="flex: 1; color: #374151; white-space: normal; word-break: break-word;">${label}</span>
-                <span style="color: #6b7280; margin: 0 8px;">${current.toFixed(0)}%</span>
-                <span style="color: #16a34a;">→ ${optimized.toFixed(0)}%</span>
-                <span style="color: ${changeColor}; margin-left: 8px; min-width: 40px; text-align: right;">${changeSign}${change.toFixed(0)}%</span>
-              </div>
-            `;
-          }).join('')}
+        <div style="background: rgba(255, 255, 255, 0.7); border-radius: 12px; padding: ${responsive('12px', '16px')}; border: 1px solid rgba(110, 231, 183, 0.6); max-height: ${responsive('220px', '260px')}; overflow-y: auto;">
+          <div style="display: grid; grid-template-columns: minmax(0, 1.8fr) repeat(3, minmax(70px, 1fr)); gap: ${responsive('10px', '14px')}; align-items: center; font-size: ${responsive('12px', '14px')}; font-weight: 600; color: #047857; text-transform: uppercase; letter-spacing: 0.06em;">
+            <div>Tool</div>
+            <div style="text-align: center;">Current</div>
+            <div style="text-align: center;">Optimized</div>
+            <div style="text-align: right;">Change</div>
+          </div>
+          <div style="margin-top: ${responsive('10px', '12px')}; display: grid; gap: ${responsive('8px', '10px')};">
+            ${riskEngine.hrddStrategyLabels.map((label, index) => {
+              const current = currentAllocation[index] || 0;
+              const optimized = optimizedToolAllocation[index] || 0;
+              const change = optimized - current;
+              const changeColor = change > 0 ? '#16a34a' : change < 0 ? '#dc2626' : '#6b7280';
+              const changeSign = change > 0 ? '+' : '';
+              const arrow = change > 0 ? '▲' : change < 0 ? '▼' : '■';
+              const arrowColor = change > 0 ? '#16a34a' : change < 0 ? '#dc2626' : '#6b7280';
+              return `
+                <div style="display: grid; grid-template-columns: minmax(0, 1.8fr) repeat(3, minmax(70px, 1fr)); gap: ${responsive('10px', '14px')}; align-items: center; font-size: ${responsive('12px', '14px')}; background: rgba(236, 253, 245, 0.7); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: ${responsive('10px', '12px')};">
+                  <span style="color: #065f46; font-weight: 600;">${label}</span>
+                  <span style="color: #0f766e; text-align: center; font-weight: 600;">${current.toFixed(0)}%</span>
+                  <span style="color: #047857; text-align: center; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(15, 118, 110, 0.12); color: ${arrowColor}; font-size: 12px; font-weight: 700;">${arrow}</span>
+                    ${optimized.toFixed(0)}%
+                  </span>
+                  <span style="color: ${changeColor}; text-align: right; font-weight: 700;">${changeSign}${change.toFixed(0)}%</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
         </div>
        </div>
     </div>
