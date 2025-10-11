@@ -131,7 +131,7 @@ export class AppController {
     this.calculateBaselineRisk = this.calculateBaselineRisk.bind(this);
     this.calculateManagedRisk = this.calculateManagedRisk.bind(this);
 
-    thisthis.generatePDFReport = this.generatePDFReport.bind(this);
+    this.generatePDFReport = this.generatePDFReport.bind(this);
     this.exportConfiguration = this.exportConfiguration.bind(this);
     this.saveState = this.saveState.bind(this);
     this.restoreState = this.restoreState.bind(this);
