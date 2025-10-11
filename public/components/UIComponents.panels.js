@@ -1703,9 +1703,26 @@ export function createCountrySelectionPanel(containerId, { countries, selectedCo
   const container = document.getElementById(containerId);
   if (!container) return;
 
+  const safeSelectedCountries = Array.isArray(selectedCountries)
+    ? selectedCountries.filter(code => typeof code === 'string' && code.trim())
+    : [];
+  const clearButtonDisabledAttr = safeSelectedCountries.length > 0 ? '' : 'disabled="disabled"';
+  const clearButtonCursor = safeSelectedCountries.length > 0 ? 'pointer' : 'not-allowed';
+  const clearButtonOpacity = safeSelectedCountries.length > 0 ? '1' : '0.65';
+
   container.innerHTML = `
     <div class="country-selection-panel" style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
-      <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 24px; color: #1f2937;">Country Selection</h2>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+        <h2 style="font-size: 20px; font-weight: bold; margin: 0; color: #1f2937;">Country Selection</h2>
+        <button
+          id="clearSelectedCountriesButton"
+          ${clearButtonDisabledAttr}
+          aria-disabled="${safeSelectedCountries.length > 0 ? 'false' : 'true'}"
+          style="padding: 10px 16px; background-color: #dc2626; color: white; border: none; border-radius: 6px; cursor: ${clearButtonCursor}; font-size: 13px; font-weight: 600; opacity: ${clearButtonOpacity}; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);"
+        >
+          Clear selected countries
+        </button>
+      </div>
 
       <div style="margin-bottom: 24px;">
         <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 8px;">
@@ -1728,11 +1745,11 @@ export function createCountrySelectionPanel(containerId, { countries, selectedCo
         </ul>
       </div>
     </div>
-  `;
+ `;
 
   const countrySelect = document.getElementById('countrySelect');
   const sortedCountries = countries
-    .filter(country => !selectedCountries.includes(country.isoCode))
+    .filter(country => !safeSelectedCountries.includes(country.isoCode))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   sortedCountries.forEach(country => {
@@ -1742,14 +1759,22 @@ export function createCountrySelectionPanel(containerId, { countries, selectedCo
     countrySelect.appendChild(option);
   });
 
-  countrySelect.addEventListener('change', (e) => {
+   countrySelect.addEventListener('change', (e) => {
     if (e.target.value && onCountrySelect) {
       onCountrySelect(e.target.value);
     }
     e.target.value = '';
   });
 
-  updateSelectedCountriesDisplay(selectedCountries, countries, countryVolumes, onCountrySelect, onVolumeChange);
+  const clearButton = document.getElementById('clearSelectedCountriesButton');
+  if (clearButton) {
+    clearButton.addEventListener('click', () => {
+      if (clearButton.disabled) return;
+      if (onCountrySelect) onCountrySelect([]);
+    });
+  }
+
+  updateSelectedCountriesDisplay(safeSelectedCountries, countries, countryVolumes, onCountrySelect, onVolumeChange);
 }
 
 export function createResultsPanel(containerId, { selectedCountries, countries, countryRisks, baselineRisk }) {
@@ -1994,12 +2019,21 @@ export function updateSelectedCountriesDisplay(selectedCountries, countries, cou
   if (!container) return;
 
   // **FIX: Validate inputs**
-  const safeSelectedCountries = Array.isArray(selectedCountries) 
+  const safeSelectedCountries = Array.isArray(selectedCountries)
     ? selectedCountries.filter(code => typeof code === 'string' && code.trim())
     : [];
-  
+
   const safeCountries = Array.isArray(countries) ? countries : [];
   const safeVolumes = (countryVolumes && typeof countryVolumes === 'object') ? countryVolumes : {};
+
+  const clearButton = document.getElementById('clearSelectedCountriesButton');
+  if (clearButton) {
+    const disabled = safeSelectedCountries.length === 0;
+    clearButton.disabled = disabled;
+    clearButton.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    clearButton.style.opacity = disabled ? '0.65' : '1';
+    clearButton.style.cursor = disabled ? 'not-allowed' : 'pointer';
+  }
 
   if (safeSelectedCountries.length === 0) {
     container.innerHTML = `

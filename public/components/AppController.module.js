@@ -131,7 +131,7 @@ export class AppController {
     this.calculateBaselineRisk = this.calculateBaselineRisk.bind(this);
     this.calculateManagedRisk = this.calculateManagedRisk.bind(this);
 
-    this.generatePDFReport = this.generatePDFReport.bind(this);
+    thisthis.generatePDFReport = this.generatePDFReport.bind(this);
     this.exportConfiguration = this.exportConfiguration.bind(this);
     this.saveState = this.saveState.bind(this);
     this.restoreState = this.restoreState.bind(this);
@@ -140,6 +140,7 @@ export class AppController {
     this.getState = this.getState.bind(this);
     this.setState = this.setState.bind(this);
     this.setCurrentStep = this.setCurrentStep.bind(this);
+    this.resetApplicationState = this.resetApplicationState.bind(this);
     this.addCountry = this.addCountry.bind(this);
     this.removeCountry = this.removeCountry.bind(this);
     this.destroy = this.destroy.bind(this);
@@ -222,18 +223,6 @@ export class AppController {
     return sanitized;
   }
   
-// Add after the normalizers section, around line 280
-safeCalculation(calculationFn, errorMessage = 'Calculation failed') {
-  try {
-    calculationFn();
-  } catch (error) {
-    console.error(errorMessage, error);
-    this.state.error = `${errorMessage}: ${error.message}`;
-    // Don't let one calculation failure break the whole app
-    this.render();
-  }
-}
-
   clamp01(v) {
     const n = parseFloat(v);
     if (!Number.isFinite(n)) return 0;
@@ -287,16 +276,14 @@ safeCalculation(calculationFn, errorMessage = 'Calculation failed') {
       this.state.countries = Array.isArray(countries) ? countries : [];
 
       // Restore any prior state (if present)
-        const stateRestored = this.loadSavedState();
+       const stateRestored = this.loadSavedState();
 
         // Compute initial risks
         this.calculateAllRisks();
 
-        // Only recalculate if we have selections or state was restored
-        if (stateRestored || this.state.selectedCountries.length > 0) {
-          this.calculateBaselineRisk();
-          this.calculateManagedRisk();
-}
+        // Always recalculate baseline and managed risk after loading
+        this.calculateBaselineRisk();
+        this.calculateManagedRisk();
 
       this.state.loading = false;
       this.state.lastUpdate = new Date().toISOString();
@@ -1277,11 +1264,11 @@ const statusBar = `
             ← Prev
           </button>
           <span style="flex:1;font-size:12px;color:#4b5563;font-weight:600;text-align:center;white-space:nowrap;">
-            Panel ${this.state.currentPanel} of 5
+            Panel ${this.state.currentPanel} of ${ENABLE_PANEL_6 ? 6 : 5}
           </span>
           <button onclick="window.hrddApp.setCurrentPanel(Math.min(${ENABLE_PANEL_6 ? 6 : 5}, window.hrddApp.state.currentPanel + 1))"
-                  style="padding:8px 16px;background:#3b82f6;color:white;border:none;border-radius:9999px;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:4px;min-width:72px;${this.state.currentPanel === (ENABLE_PANEL_6 ? 6 : 5) ? 'disabled' : ''}"
-                  Panel ${this.state.currentPanel} of ${ENABLE_PANEL_6 ? 6 : 5}
+                  style="padding:8px 16px;background:#3b82f6;color:white;border:none;border-radius:9999px;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:4px;min-width:72px;${this.state.currentPanel === (ENABLE_PANEL_6 ? 6 : 5) ? 'opacity:0.5;' : ''}"
+                  ${this.state.currentPanel === (ENABLE_PANEL_6 ? 6 : 5) ? 'disabled' : ''}>
             Next →
           </button>
         </div>
@@ -1471,10 +1458,21 @@ const statusBar = `
       </div>
     `;
 
-    if (panel === 1) {
+   if (panel === 1) {
+      const descriptionHtml = renderPanelDescription(panel);
       const html = ensureMinHeight(`
         <div style="display:flex;flex-direction:column;gap:16px;">
-          ${renderPanelDescription(panel)}
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            ${descriptionHtml}
+            <div style="display:flex;justify-content:flex-end;">
+              <button
+                id="resetAppButton"
+                style="padding:10px 20px;border:1px solid #1f2937;background-color:#111827;color:white;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;box-shadow:0 4px 10px rgba(15,23,42,0.12);"
+              >
+                Reset app to defaults
+              </button>
+            </div>
+          </div>
           <div style="display:grid;grid-template-columns:1fr;gap:16px;">
             <div id="globalMapContainer" style="min-height:500px;"></div>
             <div id="weightingsPanel" style="min-height:400px;"></div>
@@ -1495,6 +1493,13 @@ const statusBar = `
           weights: this.state.weights,
           onWeightsChange: this.onWeightsChange
         });
+
+        const resetButton = document.getElementById('resetAppButton');
+        if (resetButton) {
+          resetButton.addEventListener('click', () => {
+            this.resetApplicationState();
+          });
+        }
       });
 
       return html;
@@ -2012,14 +2017,105 @@ const statusBar = `
     }
   }
 
-  setCurrentStep(step) {
+ setCurrentStep(step) {
     this.setCurrentPanel(step);
+  }
+
+  resetApplicationState() {
+    const defaultWeights = Array.isArray(riskEngine?.defaultWeights)
+      ? [...riskEngine.defaultWeights]
+      : [20, 20, 20, 20, 20];
+    const defaultFocus = typeof riskEngine?.defaultFocus === 'number'
+      ? riskEngine.defaultFocus
+      : 0.6;
+    const defaultHRDDStrategy = Array.isArray(riskEngine?.defaultHRDDStrategy)
+      ? [...riskEngine.defaultHRDDStrategy]
+      : [0, 10, 5, 65, 100, 0];
+    const defaultTransparency = this.normalizeTransparencyEffectiveness(
+      riskEngine?.defaultTransparencyEffectiveness || [90, 50, 25, 10, 8, 2]
+    );
+    const defaultResponsiveness = Array.isArray(riskEngine?.defaultResponsivenessStrategy)
+      ? [...riskEngine.defaultResponsivenessStrategy]
+      : [75, 85, 50, 25, 5, 5];
+    const defaultResponsivenessEffectiveness = this.normalizeResponsivenessEffectiveness(
+      riskEngine?.defaultResponsivenessEffectiveness || [90, 50, 10, 10, 2, 2]
+    );
+
+    this.state.weights = defaultWeights;
+    this.state.selectedCountries = [];
+    this.state.countryVolumes = {};
+    this.state.countryRisks = {};
+    this.state.countryManagedRisks = {};
+    this.state.baselineRisk = 0;
+    this.state.managedRisk = 0;
+    this.state.riskConcentration = 1;
+    this.state.focus = defaultFocus;
+    this.state.hrddStrategy = defaultHRDDStrategy;
+    this.state.transparencyEffectiveness = defaultTransparency;
+    this.state.responsivenessStrategy = defaultResponsiveness;
+    this.state.responsivenessEffectiveness = defaultResponsivenessEffectiveness;
+    this.state.focusEffectivenessMetrics = null;
+    this.state.currentPanel = 1;
+    this.state.isDirty = false;
+    this.state.loading = false;
+    this.state.error = null;
+    this.state.isGeneratingReport = false;
+
+    if (ENABLE_PANEL_6) {
+      this.state.supplierCount = 500;
+      this.state.hourlyRate = 40;
+      this.state.toolAnnualProgrammeCosts = [12000, 0, 0, 40000, 0, 0];
+      this.state.toolPerSupplierCosts = [120, 0, 1000, 0, 0, 0];
+      this.state.toolInternalHours = [6, 20, 20, 6, 2, 1];
+      this.state.toolRemedyInternalHours = [0, 10, 10, 6, 2, 2];
+      this.state.saqConstraintEnabled = true;
+      this.state.socialAuditConstraintEnabled = true;
+      this.state.socialAuditCostReduction = 50;
+      this.state.shouldAutoRunOptimization = false;
+      this.state.lastOptimizationResult = null;
+    }
+
+    if (this.weightsTimeout) clearTimeout(this.weightsTimeout);
+    if (this.volumeTimeout) clearTimeout(this.volumeTimeout);
+    if (this.strategyTimeout) clearTimeout(this.strategyTimeout);
+    if (this.transparencyTimeout) clearTimeout(this.transparencyTimeout);
+    if (this.responsivenessTimeout) clearTimeout(this.responsivenessTimeout);
+    if (this.responsivenessEffectivenessTimeout) clearTimeout(this.responsivenessEffectivenessTimeout);
+    if (this.focusTimeout) clearTimeout(this.focusTimeout);
+
+    this.weightsTimeout = null;
+    this.volumeTimeout = null;
+    this.strategyTimeout = null;
+    this.transparencyTimeout = null;
+    this.responsivenessTimeout = null;
+    this.responsivenessEffectivenessTimeout = null;
+    this.focusTimeout = null;
+
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem('hrdd_app_state_v5');
+      }
+    } catch (error) {
+      console.warn('Failed to clear saved state:', error);
+    }
+
+    this.calculateAllRisks();
+    this.calculateBaselineRisk();
+    this.calculateManagedRisk();
+    this.state.lastUpdate = new Date().toISOString();
+
+    if (this.containerElement) {
+      this.render();
+    } else {
+      this.updateUI();
+    }
   }
 
   addCountry(isoCode, volume = null) {
     if (typeof isoCode !== 'string') return;
     const normalized = isoCode.trim().toUpperCase();
     if (!normalized) return;
+
 
     const nextSelection = Array.from(new Set([...this.state.selectedCountries, normalized]));
     this.onCountrySelect(nextSelection);
@@ -2034,9 +2130,16 @@ const statusBar = `
     const normalized = isoCode.trim().toUpperCase();
     if (!normalized) return;
 
-    const { [normalized]: _, ...remainingVolumes } = this.state.countryVolumes || {};
-    this.state.countryVolumes = remainingVolumes;
+    // Remove from volumes and managed risks
+    const cleanedVolumes = { ...this.state.countryVolumes };
+    const cleanedManagedRisks = { ...this.state.countryManagedRisks };
+    delete cleanedVolumes[normalized];
+    delete cleanedManagedRisks[normalized];
+    
+    this.state.countryVolumes = cleanedVolumes;
+    this.state.countryManagedRisks = cleanedManagedRisks;
 
+    // Update selection
     const nextSelection = this.state.selectedCountries.filter(code => code !== normalized);
     this.onCountrySelect(nextSelection);
   }
@@ -2060,14 +2163,23 @@ const statusBar = `
       if (ENABLE_PANEL_6) {
         snapshot.supplierCount = this.state.supplierCount;
         snapshot.hourlyRate = this.state.hourlyRate;
-        snapshot.toolAnnualProgrammeCosts = [...this.state.toolAnnualProgrammeCosts];
-        snapshot.toolPerSupplierCosts = [...this.state.toolPerSupplierCosts];
-        snapshot.toolInternalHours = [...this.state.toolInternalHours];
-        snapshot.toolRemedyInternalHours = [...this.state.toolRemedyInternalHours];
-        // NEW: Save SAQ constraint state
-        snapshot.saqConstraintEnabled = this.state.saqConstraintEnabled;
-        snapshot.socialAuditConstraintEnabled = this.state.socialAuditConstraintEnabled;
-        snapshot.socialAuditCostReduction = this.state.socialAuditCostReduction;
+        snapshot.toolAnnualProgrammeCosts = Array.isArray(this.state.toolAnnualProgrammeCosts) 
+          ? [...this.state.toolAnnualProgrammeCosts] 
+          : [];
+        snapshot.toolPerSupplierCosts = Array.isArray(this.state.toolPerSupplierCosts)
+          ? [...this.state.toolPerSupplierCosts]
+          : [];
+        snapshot.toolInternalHours = Array.isArray(this.state.toolInternalHours)
+          ? [...this.state.toolInternalHours]
+          : [];
+        snapshot.toolRemedyInternalHours = Array.isArray(this.state.toolRemedyInternalHours)
+          ? [...this.state.toolRemedyInternalHours]
+          : [];
+        snapshot.saqConstraintEnabled = Boolean(this.state.saqConstraintEnabled);
+        snapshot.socialAuditConstraintEnabled = Boolean(this.state.socialAuditConstraintEnabled);
+        snapshot.socialAuditCostReduction = Number.isFinite(this.state.socialAuditCostReduction)
+          ? this.state.socialAuditCostReduction
+          : 50;
       }
       localStorage.setItem('hrdd_app_state_v5', JSON.stringify(snapshot));
       this.state.isDirty = false;
