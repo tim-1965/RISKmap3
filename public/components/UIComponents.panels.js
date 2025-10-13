@@ -543,11 +543,11 @@ export function createHRDDStrategyPanel(containerId, { strategy, onStrategyChang
       <div style="font-size: 12px; color: #6b7280; font-style: italic;">
         ${strategyDescriptions[index]}
       </div>
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <div style="flex: 1; position: relative; display: flex; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <div style="flex: 1 1 220px; min-width: min(220px, 100%); max-width: 100%; position: relative; display: flex; align-items: center;">
           <input type="range" min="0" max="100" value="${localStrategy[index]}" id="strategy_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db;">
         </div>
-        <input type="number" min="0" max="100" value="${localStrategy[index]}" id="strategyNum_${index}" style="width: 80px; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; text-align: center;">
+        <input type="number" min="0" max="100" value="${localStrategy[index]}" id="strategyNum_${index}" style="width: 64px; flex: 0 0 64px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px; text-align: center;">
         <span style="font-size: 12px; color: #6b7280; font-weight: 500;">%</span>
       </div>
     `;
@@ -682,11 +682,11 @@ export function createFocusPanel(containerId, { focus, onFocusChange, focusEffec
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px;">
-        <div style="flex: 1; min-width: 160px; position: relative; display: flex; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div style="flex: 1 1 240px; min-width: min(240px, 100%); max-width: 100%; position: relative; display: flex; align-items: center;">
           <input type="range" min="0" max="1" step="0.05" value="${localFocus.toFixed(2)}" id="focusSlider" style="width: 100%; height: 8px; border-radius: 4px; background-color: #bfdbfe;">
         </div>
-        <input type="number" min="0" max="1" step="0.05" value="${localFocus.toFixed(2)}" id="focusNumber" style="width: 100px; padding: 10px 12px; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 14px; text-align: center;">
+        <input type="number" min="0" max="1" step="0.05" value="${localFocus.toFixed(2)}" id="focusNumber" style="width: 72px; flex: 0 0 72px; padding: 6px 8px; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 13px; text-align: center;">
       </div>
 
       <ul style="margin: 0; font-size: 13px; color: #1e3a8a; padding-left: 20px; line-height: 1.6;">
@@ -1950,11 +1950,11 @@ export function createWeightingsPanel(containerId, { weights, onWeightsChange })
         </a>
       </div>
       <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">${factor.description}</div>
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <div style="flex: 1; position: relative; display: flex; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <div style="flex: 1 1 220px; min-width: min(220px, 100%); max-width: 100%; position: relative; display: flex; align-items: center;">
           <input type="range" min="0" max="100" value="${weightValue}" id="weight_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db;">
         </div>
-        <input type="number" min="0" max="100" value="${weightValue}" id="weightNum_${index}" style="width: 80px; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; text-align: center;">
+        <input type="number" min="0" max="100" value="${weightValue}" id="weightNum_${index}" style="width: 64px; flex: 0 0 64px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px; text-align: center;">
       </div>
     `;
     weightsContainer.appendChild(weightControl);
