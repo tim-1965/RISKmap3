@@ -107,6 +107,9 @@ export class AppController {
     this.responsivenessEffectivenessTimeout = null;
     this.focusTimeout = null;
 
+    this.headerResizeObserver = null;
+    this._headerResizeHandler = null;
+
     // Retry policy for init
     this.retryCount = 0;
     this.maxRetries = 3;
@@ -1205,8 +1208,6 @@ updatePanel2Components() {
         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)
       : false;
 
-    const headerHeight = isMobile ? 120 : 180;
-
     let formattedLastUpdate = '';
     if (this.state.lastUpdate) {
       try {
@@ -1220,7 +1221,7 @@ updatePanel2Components() {
     const navButtons = Array.from({length: maxPanels}, (_, i) => i + 1)
       .map(panel => `
               <button onclick="window.hrddApp.setCurrentPanel(${panel})"
-                      style="padding:${isMobile ? '8px 10px' : '6px 12px'};
+                      style="padding:${isMobile ? '6px 8px' : '6px 12px'};
                              border:1px solid ${this.state.currentPanel === panel ? '#2563eb' : '#d1d5db'};
                              background:${this.state.currentPanel === panel ? '#2563eb' : 'rgba(255,255,255,0.9)'};
                              color:${this.state.currentPanel === panel ? 'white' : '#475569'};
@@ -1228,12 +1229,12 @@ updatePanel2Components() {
                              cursor:pointer;
                              font-weight:600;
                              transition:all .2s;
-                             font-size:${isMobile ? '11px' : '12px'};
+                             font-size:${isMobile ? '10px' : '12px'};
                              box-shadow:${this.state.currentPanel === panel ? '0 8px 18px rgba(37,99,235,.25)' : '0 3px 8px rgba(15,23,42,.08)'};
-                             min-width:${isMobile ? '44px' : 'auto'};
-                             min-height:${isMobile ? '36px' : 'auto'};
+                             min-width:${isMobile ? '36px' : 'auto'};
+                             min-height:${isMobile ? '32px' : 'auto'};
                              flex:${isMobile ? '1' : 'initial'};
-                             max-width:${isMobile ? '80px' : 'none'};">
+                             max-width:${isMobile ? '56px' : 'none'};">
                 ${isMobile ? panel : `${panel}. ${panelTitles[panel]}`}
               </button>
             `)
@@ -1282,7 +1283,7 @@ const statusBar = `
            <div style="width:100%;max-width:1600px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:${isMobile ? '8px' : '12px'};text-align:center;padding:${isMobile ? '8px 12px' : '12px 20px'};background:rgba(255,255,255,0.9);border:1px solid rgba(226,232,240,0.8);border-radius:${isMobile ? '8px' : '12px'};box-shadow:0 6px 18px rgba(15,23,42,0.08);box-sizing:border-box;">
             ${isMobile ? `
               <div style="display:flex;flex-direction:column;gap:6px;align-items:center;width:100%;">
-                <h1 style="font-size:18px;font-weight:700;color:#1f2937;margin:0;line-height:1.2;">Supply chain risks</h1>
+                <h1 style="font-size:18px;font-weight:700;color:#1f2937;margin:0;line-height:1.2;">Supply Chain Labour Tools</h1>
               </div>
             ` : `
               <div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
@@ -1296,7 +1297,8 @@ const statusBar = `
             ${statusBar}
           </div>
         </header>
-       <main id="hrddMainContent" style="position:absolute;top:${headerHeight}px;left:0;right:0;bottom:${isMobile ? '60px' : '0'};overflow-y:auto;overflow-x:hidden;background-color:#f8fafc;box-sizing:border-box;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;">
+       <button onclick="window.hrddApp.setCurrentPanel(${panel})"␊
+          style="padding:${isMobile ? '6px 8px' : '6px 12px'};
           <div style="width:100%;max-width:${isMobile ? '100%' : '1600px'};margin:0 auto;padding:${isMobile ? '12px 12px 80px' : '20px 20px 60px'};box-sizing:border-box;">
             <div id="panelContent">
               ${this.renderCurrentPanel()}
@@ -1421,9 +1423,48 @@ const statusBar = `
       </style>
     `;
 
+     if (this.headerResizeObserver) {
+      try {
+        this.headerResizeObserver.disconnect();
+      } catch (error) {
+        // ignore observer cleanup issues
+      }
+      this.headerResizeObserver = null;
+    }
+
+    if (this._headerResizeHandler && typeof window !== 'undefined') {
+      window.removeEventListener('resize', this._headerResizeHandler);
+      this._headerResizeHandler = null;
+    }
+
+    const headerElement = typeof document !== 'undefined'
+      ? document.getElementById('hrddHeader')
+      : null;
+
     const mainContent = typeof document !== 'undefined'
       ? document.getElementById('hrddMainContent')
       : null;
+
+    if (headerElement && mainContent) {
+      const applyHeaderOffset = () => {
+        const measuredHeight = headerElement.getBoundingClientRect().height || 0;
+        mainContent.style.top = `${Math.ceil(measuredHeight)}px`;
+      };
+
+      applyHeaderOffset();
+
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(() => applyHeaderOffset());
+      }
+
+      if (typeof ResizeObserver !== 'undefined') {
+        this.headerResizeObserver = new ResizeObserver(() => applyHeaderOffset());
+        this.headerResizeObserver.observe(headerElement);
+      } else if (typeof window !== 'undefined') {
+        this._headerResizeHandler = () => applyHeaderOffset();
+        window.addEventListener('resize', this._headerResizeHandler);
+      }
+    }
 
     if (this._wheelListenerAttached && this._wheelListenerTarget && this._wheelListenerTarget !== mainContent) {
       try {
@@ -2342,7 +2383,7 @@ const statusBar = `
 
   /* ------------------------------ Cleanup ---------------------------- */
 
-  destroy() {
+ destroy() {
     if (this.weightsTimeout) clearTimeout(this.weightsTimeout);
     if (this.volumeTimeout) clearTimeout(this.volumeTimeout);
     if (this.strategyTimeout) clearTimeout(this.strategyTimeout);
@@ -2350,6 +2391,20 @@ const statusBar = `
     if (this.responsivenessTimeout) clearTimeout(this.responsivenessTimeout);
     if (this.responsivenessEffectivenessTimeout) clearTimeout(this.responsivenessEffectivenessTimeout);
     if (this.focusTimeout) clearTimeout(this.focusTimeout);
+
+    if (this.headerResizeObserver) {
+      try {
+        this.headerResizeObserver.disconnect();
+      } catch (error) {
+        // ignore observer cleanup issues
+      }
+      this.headerResizeObserver = null;
+    }
+
+    if (this._headerResizeHandler && typeof window !== 'undefined') {
+      window.removeEventListener('resize', this._headerResizeHandler);
+      this._headerResizeHandler = null;
+    }
 
     if (this.state.isDirty) this.saveState();
     if (this._wheelListenerAttached && this._wheelListenerTarget) {
