@@ -78,11 +78,11 @@ export class AppController {
       // Strategy (coverage %) and effectiveness (%)
       hrddStrategy: riskEngine.defaultHRDDStrategy || [0, 10, 5, 65, 100, 0],
       transparencyEffectiveness: this.normalizeTransparencyEffectiveness(
-        riskEngine.defaultTransparencyEffectiveness || [90, 50, 25, 10, 8, 2]
+        riskEngine.defaultTransparencyEffectiveness || [80, 40, 30, 20, 10, 5]
       ),
-      responsivenessStrategy: riskEngine.defaultResponsivenessStrategy || [75, 85, 50, 25, 5, 5],
+      responsivenessStrategy: riskEngine.defaultResponsivenessStrategy || [80, 50, 30, 15, 5, 5],
       responsivenessEffectiveness: this.normalizeResponsivenessEffectiveness(
-        riskEngine.defaultResponsivenessEffectiveness || [90, 50, 10, 10, 2, 2]
+        riskEngine.defaultResponsivenessEffectiveness || [80, 35, 10, 10, 2, 2]
       ),
 
       // Focus analytics (optional, shown when available)

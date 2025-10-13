@@ -6,11 +6,11 @@ export class RiskEngine {
     
     // Step 2: HRDD Strategy defaults - representing supplier base coverage percentages
     this.defaultHRDDStrategy = [0, 5, 5, 65, 100, 0]; // Coverage percentages: Worker voice is rare, trusting approaches are common
-    this.defaultTransparencyEffectiveness = [75, 60, 65, 10, 5, 2]; // Base effectiveness rates
+    this.defaultTransparencyEffectiveness = [80, 40, 30, 20, 10, 5]; // Base effectiveness rates
 
      // Step 3: Effectiveness defaults for sustained remedy and good conduct
-    this.defaultResponsivenessStrategy = [85, 40, 30, 20, 10, 5]; // Effectiveness of each tool at delivering sustained remedy
-    this.defaultResponsivenessEffectiveness = [85, 30, 30, 25, 10, 5]; // Effectiveness of each tool at promoting good conduct in percentages
+    this.defaultResponsivenessStrategy = [80, 50, 30, 15, 5, 5]; // Effectiveness of each tool at delivering sustained remedy
+    this.defaultResponsivenessEffectiveness = [80, 35, 10, 10, 2, 2]; // Effectiveness of each tool at promoting good conduct in percentages
 
     // Focus defaults for directing transparency/response capacity to higher-risk countries
     this.defaultFocus = 0.6;
