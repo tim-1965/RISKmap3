@@ -139,6 +139,52 @@ export class PDFGenerator {
     });
   }
 
+  async withForcedOverflowVisible(targetElement, task) {
+    if (typeof task !== 'function') {
+      return null;
+    }
+
+    if (!targetElement || typeof targetElement.querySelectorAll !== 'function') {
+      return await task();
+    }
+
+    const elements = new Set();
+
+    const registerElement = element => {
+      if (!element || !element.style) return;
+      const { overflow, overflowX, overflowY } = element.style;
+      if (overflow || overflowX || overflowY) {
+        elements.add(element);
+      }
+    };
+
+    registerElement(targetElement);
+    targetElement.querySelectorAll('*').forEach(registerElement);
+
+    const snapshots = Array.from(elements).map(element => ({
+      element,
+      overflow: element.style.overflow,
+      overflowX: element.style.overflowX,
+      overflowY: element.style.overflowY
+    }));
+
+    elements.forEach(element => {
+      element.style.overflow = 'visible';
+      element.style.overflowX = 'visible';
+      element.style.overflowY = 'visible';
+    });
+
+    try {
+      return await task();
+    } finally {
+      snapshots.forEach(({ element, overflow, overflowX, overflowY }) => {
+        element.style.overflow = overflow;
+        element.style.overflowX = overflowX;
+        element.style.overflowY = overflowY;
+      });
+    }
+  }
+
   async captureElement(element, options = {}) {
     if (!element) return null;
 
@@ -272,37 +318,39 @@ export class PDFGenerator {
         return fallbackCanvas ? [{ canvas: fallbackCanvas }] : [];
       }
 
-      if (panelNumber === 3) {
+     if (panelNumber === 3) {
         const sections = [];
-        const strategyInfo = panelContent.querySelector('[data-panel3-info="strategy"]');
-        const transparencyInfo = panelContent.querySelector('[data-panel3-info="transparency"]');
+        const overviewBlock = panelContent.querySelector('[data-pdf-block="panel3-tools-overview"]');
         const focusPanel = document.getElementById('focusPanel');
 
-        const strategyCanvas = await this.captureWithHiddenElements(panelContent, [strategyInfo, transparencyInfo, focusPanel]);
-        if (strategyCanvas) {
-          sections.push({ canvas: strategyCanvas, sectionTitle: 'HRDD Strategy Configuration' });
+        const topSectionHideTargets = [focusPanel, overviewBlock].filter(Boolean);
+        const topCanvas = await this.captureWithHiddenElements(panelContent, topSectionHideTargets);
+        if (topCanvas) {
+          sections.push({ canvas: topCanvas, sectionTitle: 'HRDD Strategy Configuration' });
         }
 
-        const strategyPanel = document.getElementById('hrddStrategyPanel');
-        const transparencyPanel = document.getElementById('transparencyPanel');
-        const strategyContainer = document.getElementById('strategyContainer');
-        const transparencyContainer = document.getElementById('transparencyContainer');
-        const riskSummary = document.getElementById('strategyRiskSummary');
-
-        const guidanceCanvas = await this.captureWithHiddenElements(panelContent, [
-          riskSummary,
-          strategyPanel ? strategyPanel.firstElementChild : null,
-          strategyContainer,
-          transparencyPanel ? transparencyPanel.firstElementChild : null,
-          transparencyContainer
-        ]);
-
-        if (guidanceCanvas) {
-          sections.push({ canvas: guidanceCanvas, sectionTitle: 'Guidance & Focus Settings' });
+        if (focusPanel) {
+          const focusCanvas = await this.withForcedOverflowVisible(focusPanel, () =>
+            this.captureElement(focusPanel)
+          );
+          if (focusCanvas) {
+            sections.push({ canvas: focusCanvas, sectionTitle: 'Focus on High-Risk Countries' });
+          }
         }
 
         if (sections.length > 0) {
           return sections;
+        }
+
+        const fallbackCanvas = await this.captureElement(panelContent);
+        return fallbackCanvas ? [{ canvas: fallbackCanvas }] : [];
+      }
+
+      if (panelNumber === 4) {
+        const guidanceBlock = panelContent.querySelector('[data-pdf-block="panel4-guidance"]');
+        const canvas = await this.captureWithHiddenElements(panelContent, [guidanceBlock]);
+        if (canvas) {
+          return [{ canvas, sectionTitle: 'Remedy & Conduct Effectiveness' }];
         }
 
         const fallbackCanvas = await this.captureElement(panelContent);
@@ -321,47 +369,27 @@ export class PDFGenerator {
         }
 
         const finalResultsPanel = document.getElementById('finalResultsPanel');
-        let resultsCaptured = false;
-
         if (finalResultsPanel) {
-          const coverageBreakdown = document.getElementById('coverageResponseBreakdownSection');
-          const actionsSection = document.getElementById('finalResultsActions');
+          const detailedBreakdown = document.getElementById('detailedStrategyBreakdownSection');
 
-          const strategyCanvas = await this.captureWithHiddenElements(finalResultsPanel, [coverageBreakdown, actionsSection]);
+          const firstPageHideTargets = [detailedBreakdown].filter(Boolean);
+          const strategyCanvas = await this.captureWithHiddenElements(finalResultsPanel, firstPageHideTargets);
           if (strategyCanvas) {
             sectionCanvases.push({
               canvas: strategyCanvas,
-              sectionTitle: 'How Your Enhanced HRDD Strategy Reduces Risk'
+              sectionTitle: 'How Your Use of Labour Rights DD Tools Reduces Risk'
             });
-            resultsCaptured = true;
           }
 
-          const riskSummary = document.getElementById('finalRiskSummary');
-          const strategyTransformation = document.getElementById('strategyTransformationSection');
-
-          const breakdownCanvas = await this.captureWithHiddenElements(finalResultsPanel, [riskSummary, strategyTransformation]);
-          if (breakdownCanvas) {
-            sectionCanvases.push({
-              canvas: breakdownCanvas,
-              sectionTitle: 'How Coverage & Response Choices Reduce Risk'
-            });
-            resultsCaptured = true;
-          }
-
-          if (!resultsCaptured) {
-            const fallbackResults = await this.captureElement(finalResultsPanel);
-            if (fallbackResults) {
-              sectionCanvases.push({ canvas: fallbackResults, sectionTitle: 'Strategy Summary' });
-              resultsCaptured = true;
-            }
-          }
-        } else {
-          const resultsSection = document.getElementById('panel5ResultsSection') || document.getElementById('finalResultsPanel');
-          if (resultsSection) {
-            const resultsCanvas = await this.captureElement(resultsSection);
-            if (resultsCanvas) {
-              sectionCanvases.push({ canvas: resultsCanvas, sectionTitle: 'Strategy Summary' });
-              resultsCaptured = true;
+          if (detailedBreakdown) {
+            const breakdownCanvas = await this.withForcedOverflowVisible(detailedBreakdown, () =>
+              this.captureElement(detailedBreakdown)
+            );
+            if (breakdownCanvas) {
+              sectionCanvases.push({
+                canvas: breakdownCanvas,
+                sectionTitle: 'How Your Tools Manage Risk After Detection'
+              });
             }
           }
         }
@@ -371,43 +399,80 @@ export class PDFGenerator {
           if (fallbackCanvas) {
             sectionCanvases.push({ canvas: fallbackCanvas });
           }
-       }
+        }
 
-      return sectionCanvases;
-    }
+        return sectionCanvases;
+      }
 
       if (panelNumber === 6) {
         const sections = [];
 
         const mapsSection = document.getElementById('panel6MapsSection');
         if (mapsSection) {
+          const optimizedButton = mapsSection.querySelector('.cost-map-mode[data-map-mode="optimized"]');
+          const baselineButton = mapsSection.querySelector('.cost-map-mode[data-map-mode="baseline"]');
+          const canActivateOptimized = optimizedButton && !optimizedButton.disabled;
+
+          if (canActivateOptimized) {
+            optimizedButton.click();
+            await new Promise(resolve => setTimeout(resolve, 600));
+          }
+
           const mapsCanvas = await this.captureElement(mapsSection);
           if (mapsCanvas) {
             sections.push({
               canvas: mapsCanvas,
-              sectionTitle: 'Global Risk Outlook Maps'
+              sectionTitle: 'Optimization Outcome & Global Risk Outlook'
             });
+          }
+
+          if (canActivateOptimized && baselineButton) {
+            baselineButton.click();
+            await new Promise(resolve => setTimeout(resolve, 200));
           }
         }
 
         const assumptionsSection = document.getElementById('panel6CostAssumptionsSection');
         if (assumptionsSection) {
-          const assumptionsCanvas = await this.captureElement(assumptionsSection);
+          const assumptionsCanvas = await this.withForcedOverflowVisible(assumptionsSection, () =>
+            this.captureElement(assumptionsSection)
+          );
           if (assumptionsCanvas) {
             sections.push({
               canvas: assumptionsCanvas,
-              sectionTitle: 'Cost Assumptions'
+              sectionTitle: 'Cost Analysis & Budget Optimization'
             });
           }
         }
 
         const allocationSection = document.getElementById('panel6AllocationBreakdownSection');
+        const budgetBreakdown = document.getElementById('detailedBudgetBreakdown');
         if (allocationSection) {
-          const allocationCanvas = await this.captureElement(allocationSection);
+          const hideTargets = [];
+          if (budgetBreakdown && allocationSection.contains(budgetBreakdown)) {
+            hideTargets.push(budgetBreakdown);
+          }
+
+          const allocationCanvas = await this.withForcedOverflowVisible(allocationSection, () =>
+            this.captureWithHiddenElements(allocationSection, hideTargets)
+          );
+
           if (allocationCanvas) {
             sections.push({
               canvas: allocationCanvas,
-              sectionTitle: 'Recommended Allocation & Budget Breakdown'
+              sectionTitle: 'Budget Optimization Analysis'
+            });
+          }
+        }
+
+        if (budgetBreakdown) {
+          const breakdownCanvas = await this.withForcedOverflowVisible(budgetBreakdown, () =>
+            this.captureElement(budgetBreakdown)
+          );
+          if (breakdownCanvas) {
+            sections.push({
+              canvas: breakdownCanvas,
+              sectionTitle: 'Detailed Budget Breakdown'
             });
           }
         }

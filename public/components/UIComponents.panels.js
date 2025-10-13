@@ -1651,7 +1651,7 @@ export function createFinalResultsPanel(containerId, { baselineRisk, managedRisk
       </div>
 
       <!-- DETAILED STRATEGY BREAKDOWN -->
-      <div style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); margin-bottom: 24px;">
+       <div id="detailedStrategyBreakdownSection" style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); margin-bottom: 24px;">
         <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #374151;">How your tools manage risk after detection</h3>
         <p style="font-size: 13px; color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
           Your configuration ${totalReductionVerb} ${formatNumber(totalReductionAmount)} pts of risk from the baseline.
