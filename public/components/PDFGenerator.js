@@ -255,6 +255,46 @@ export class PDFGenerator {
     return this.isButtonActive(button);
   }
 
+  async ensureCostAnalysisMapReady(mapsSection) {
+    if (!mapsSection || typeof mapsSection.querySelector !== 'function') {
+      return;
+    }
+
+    const mapContainer = mapsSection.querySelector('#costAnalysisMapCanvas');
+    if (!mapContainer) {
+      return;
+    }
+
+    const mapReady = await this.waitForCondition(() => {
+      const svg = mapContainer.querySelector('svg');
+      if (svg) {
+        const countryPaths = svg.querySelectorAll('path.country');
+        if (countryPaths.length > 0) {
+          return Array.from(countryPaths).some(path => {
+            const d = path.getAttribute('d');
+            return typeof d === 'string' && d.trim().length > 0;
+          });
+        }
+
+        // Fallback: ensure the SVG has drawn paths
+        return svg.querySelectorAll('path').length > 10;
+      }
+
+      // Support fallback map grid rendering
+      const fallbackGrid = mapContainer.querySelector('.simple-map-container');
+      if (fallbackGrid) {
+        const tiles = fallbackGrid.querySelectorAll('.map-grid div');
+        return tiles.length > 0;
+      }
+
+      return false;
+    }, { timeout: 4000, interval: 160 });
+
+    if (!mapReady) {
+      console.warn('Cost analysis map did not finish rendering before capture.');
+    }
+  }
+
   async waitForCondition(condition, { timeout = 2500, interval = 120 } = {}) {
     if (typeof condition !== 'function') {
       return false;
@@ -351,13 +391,23 @@ export class PDFGenerator {
       return 1.35;
     })();
 
+    const computedWidth = Math.max(
+      Number.isFinite(element.scrollWidth) ? element.scrollWidth : 0,
+      Number.isFinite(element.offsetWidth) ? element.offsetWidth : 0
+    ) || element.clientWidth || 0;
+
+    const computedHeight = Math.max(
+      Number.isFinite(element.scrollHeight) ? element.scrollHeight : 0,
+      Number.isFinite(element.offsetHeight) ? element.offsetHeight : 0
+    ) || element.clientHeight || 0;
+
     const defaultOptions = {
       scale: pixelRatio,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
-      width: element.offsetWidth,
-      height: element.offsetHeight,
+      width: computedWidth,
+      height: computedHeight,
       scrollX: 0,
       scrollY: 0,
       ...options
@@ -582,6 +632,8 @@ export class PDFGenerator {
             });
             await new Promise(resolve => setTimeout(resolve, 220));
           }
+
+          await this.ensureCostAnalysisMapReady(mapsSection);
 
           const mapsCanvas = await this.captureElement(mapsSection);
           if (mapsCanvas) {
