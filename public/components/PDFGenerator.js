@@ -120,7 +120,7 @@ export class PDFGenerator {
     }
   }
 
-  hideElements(elements = []) {
+ hideElements(elements = []) {
     const hiddenStates = [];
     elements.forEach(element => {
       if (element && element.style) {
@@ -139,7 +139,156 @@ export class PDFGenerator {
     });
   }
 
-  async withForcedOverflowVisible(targetElement, task) {
+  expandScrollableAreas(rootElement) {
+    if (!rootElement || typeof rootElement.querySelectorAll !== 'function') {
+      return [];
+    }
+
+    const elements = [rootElement, ...Array.from(rootElement.querySelectorAll('*'))];
+    const expansions = [];
+
+    elements.forEach(element => {
+      if (!(element instanceof HTMLElement)) return;
+      if (element === document.body || element === document.documentElement) return;
+
+      const scrollableHeight = element.scrollHeight - element.clientHeight;
+      if (!Number.isFinite(scrollableHeight) || scrollableHeight <= 2) {
+        return;
+      }
+
+      expansions.push({
+        element,
+        styles: {
+          overflow: element.style.overflow,
+          overflowX: element.style.overflowX,
+          overflowY: element.style.overflowY,
+          maxHeight: element.style.maxHeight,
+          height: element.style.height
+        }
+      });
+
+      element.style.overflow = 'visible';
+      element.style.overflowX = 'visible';
+      element.style.overflowY = 'visible';
+      element.style.maxHeight = 'none';
+      element.style.height = 'auto';
+    });
+
+    return expansions;
+  }
+
+  restoreScrollableAreas(expansions = []) {
+    expansions.forEach(expansion => {
+      if (!expansion || !expansion.element || !expansion.styles) return;
+      const { element, styles } = expansion;
+      element.style.overflow = styles.overflow ?? '';
+      element.style.overflowX = styles.overflowX ?? '';
+      element.style.overflowY = styles.overflowY ?? '';
+      element.style.maxHeight = styles.maxHeight ?? '';
+      element.style.height = styles.height ?? '';
+    });
+  }
+
+  isButtonActive(button) {
+    if (!button) return false;
+
+    const inlineBackground = (button.style?.background || '').trim().toLowerCase();
+    if (inlineBackground && inlineBackground !== '#f8fafc') {
+      return true;
+    }
+
+    try {
+      const computed = window.getComputedStyle(button);
+      if (!computed) return false;
+
+      const computedBackground = (computed.backgroundColor || '').trim().toLowerCase();
+      if (computedBackground && computedBackground !== 'rgb(248, 250, 252)') {
+        return true;
+      }
+
+      const transform = (button.style?.transform || computed.transform || '').trim();
+      if (transform && transform !== 'none') {
+        if (transform.includes('translateY(-1px)')) {
+          return true;
+        }
+
+        if (transform.startsWith('matrix')) {
+          const values = transform.replace(/^matrix\(|\)$/g, '').split(',');
+          if (values.length === 6) {
+            const translateY = parseFloat(values[5]);
+            if (!Number.isNaN(translateY) && translateY < 0) {
+              return true;
+            }
+          }
+        }
+      }
+
+      const boxShadow = (button.style?.boxShadow || computed.boxShadow || '').toLowerCase();
+      if (boxShadow.includes('16px')) {
+        return true;
+      }
+    } catch (error) {
+      console.warn('Unable to determine button active state:', error);
+    }
+
+    return false;
+  }
+
+  getActiveMapMode(mapsSection) {
+    if (!mapsSection || typeof mapsSection.querySelectorAll !== 'function') {
+      return null;
+    }
+
+    const buttons = mapsSection.querySelectorAll('.cost-map-mode');
+    for (const button of buttons) {
+      if (this.isButtonActive(button)) {
+        return button.dataset?.mapMode || null;
+      }
+    }
+
+    return null;
+  }
+
+  isMapModeActive(mapsSection, mode) {
+    if (!mapsSection) return false;
+    const button = mapsSection.querySelector(`.cost-map-mode[data-map-mode="${mode}"]`);
+    return this.isButtonActive(button);
+  }
+
+  async waitForCondition(condition, { timeout = 2500, interval = 120 } = {}) {
+    if (typeof condition !== 'function') {
+      return false;
+    }
+
+    const start = Date.now();
+
+    return new Promise(resolve => {
+      const check = () => {
+        let result = false;
+        try {
+          result = Boolean(condition());
+        } catch (error) {
+          result = false;
+        }
+
+        if (result) {
+          resolve(true);
+          return;
+        }
+
+        if (Date.now() - start >= timeout) {
+          resolve(false);
+          return;
+        }
+
+        setTimeout(check, interval);
+      };
+
+      check();
+    });
+  }
+
+  async withForcedOverflowVisible(targetElement, task, options = {}) {
     if (typeof task !== 'function') {
       return null;
     }
@@ -148,6 +297,7 @@ export class PDFGenerator {
       return await task();
     }
 
+    const { expandScrollable = false } = options;
     const elements = new Set();
 
     const registerElement = element => {
@@ -174,9 +324,14 @@ export class PDFGenerator {
       element.style.overflowY = 'visible';
     });
 
+    const expandedSnapshots = expandScrollable
+      ? this.expandScrollableAreas(targetElement)
+      : [];
+
     try {
       return await task();
     } finally {
+      this.restoreScrollableAreas(expandedSnapshots);
       snapshots.forEach(({ element, overflow, overflowX, overflowY }) => {
         element.style.overflow = overflow;
         element.style.overflowX = overflowX;
@@ -272,14 +427,18 @@ export class PDFGenerator {
     }
   }
 
-  async captureWithHiddenElements(targetElement, elementsToHide = []) {
+  async captureWithHiddenElements(targetElement, elementsToHide = [], options = {}) {
+    const { expandScrollable = false } = options || {};
     const hiddenStates = this.hideElements(elementsToHide);
+    const expandedStates = expandScrollable ? this.expandScrollableAreas(targetElement) : [];
     try {
       return await this.captureElement(targetElement);
     } finally {
+      this.restoreScrollableAreas(expandedStates);
       this.restoreElements(hiddenStates);
     }
   }
+
 
   async generatePanelContent(appInstance, panelNumber, options = {}) {
     const originalPanel = appInstance.state.currentPanel;
@@ -407,15 +566,20 @@ export class PDFGenerator {
       if (panelNumber === 6) {
         const sections = [];
 
-        const mapsSection = document.getElementById('panel6MapsSection');
-        if (mapsSection) {
+         if (mapsSection) {
           const optimizedButton = mapsSection.querySelector('.cost-map-mode[data-map-mode="optimized"]');
           const baselineButton = mapsSection.querySelector('.cost-map-mode[data-map-mode="baseline"]');
-          const canActivateOptimized = optimizedButton && !optimizedButton.disabled;
+          const previousMode = this.getActiveMapMode(mapsSection) || (baselineButton?.dataset?.mapMode) || 'baseline';
+          const shouldToggleOptimized = optimizedButton && !optimizedButton.disabled && !this.isButtonActive(optimizedButton);
 
-          if (canActivateOptimized) {
-            optimizedButton.click();
-            await new Promise(resolve => setTimeout(resolve, 600));
+          if (shouldToggleOptimized) {
+            optimizedButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            await new Promise(resolve => setTimeout(resolve, 120));
+            await this.waitForCondition(() => this.isMapModeActive(mapsSection, 'optimized'), {
+              timeout: 3000,
+              interval: 140
+            });
+            await new Promise(resolve => setTimeout(resolve, 220));
           }
 
           const mapsCanvas = await this.captureElement(mapsSection);
@@ -426,16 +590,21 @@ export class PDFGenerator {
             });
           }
 
-          if (canActivateOptimized && baselineButton) {
-            baselineButton.click();
-            await new Promise(resolve => setTimeout(resolve, 200));
+          const restoreMode = shouldToggleOptimized ? previousMode : null;
+          if (restoreMode && restoreMode !== 'optimized') {
+            const restoreButton = mapsSection.querySelector(`.cost-map-mode[data-map-mode="${restoreMode}"]`);
+            if (restoreButton) {
+              restoreButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+              await new Promise(resolve => setTimeout(resolve, 180));
+            }
           }
         }
 
         const assumptionsSection = document.getElementById('panel6CostAssumptionsSection');
         if (assumptionsSection) {
           const assumptionsCanvas = await this.withForcedOverflowVisible(assumptionsSection, () =>
-            this.captureElement(assumptionsSection)
+            this.captureElement(assumptionsSection),
+            { expandScrollable: true }
           );
           if (assumptionsCanvas) {
             sections.push({
@@ -454,7 +623,8 @@ export class PDFGenerator {
           }
 
           const allocationCanvas = await this.withForcedOverflowVisible(allocationSection, () =>
-            this.captureWithHiddenElements(allocationSection, hideTargets)
+            this.captureWithHiddenElements(allocationSection, hideTargets, { expandScrollable: true }),
+            { expandScrollable: true }
           );
 
           if (allocationCanvas) {
@@ -466,8 +636,9 @@ export class PDFGenerator {
         }
 
         if (budgetBreakdown) {
-          const breakdownCanvas = await this.withForcedOverflowVisible(budgetBreakdown, () =>
-            this.captureElement(budgetBreakdown)
+           const breakdownCanvas = await this.withForcedOverflowVisible(budgetBreakdown, () =>
+            this.captureElement(budgetBreakdown),
+            { expandScrollable: true }
           );
           if (breakdownCanvas) {
             sections.push({
