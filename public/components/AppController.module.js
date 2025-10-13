@@ -11,7 +11,7 @@ import { UIComponents } from './UIComponents.js';
 import { pdfGenerator } from './PDFGenerator.js';
 
 const PANEL_DESCRIPTIONS = {
-  1: 'Decide for yourself. Calculate a global picture of labour rights risks using publicly-available indices from reputable organisations. Use sliders (below the map) to change weightings. The app will remember your settings if you enable cookies. You can print your work on panel 5 and panel 6. Then go to panel 2.',
+  1: 'Decide for yourself. Calculate a global picture of labour rights risks using publicly-available indices from reputable organisations. Use sliders (below the map) to change weightings. Then go to panel 2. NOTE: the app will remember your settings if you enable cookies and you can print your work on panel 5 and panel 6.',
   2: 'Click on the map to select the countries in your supply chain or pick from the list below (not all countries are in the map). You can optionally weighting different countries (eg: by number of suppliers or workers, value of sourcing etc..). Then go to panel 3.',
   3: 'Set out your supply chain due diligence progam across six different industry tools and the effectiveness of each. Set the extent to which your efforts are focussed on higher risk countries. Then go to panel 4.',
   4: 'Calibrate the effectiveness of your tools, once issues are detected, in delivering sustained remedy and promoting good supplier conduct. Use both columns to reflect your experience of each tool. Then go to panel 5.',
