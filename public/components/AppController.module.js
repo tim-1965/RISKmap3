@@ -1651,7 +1651,7 @@ const statusBar = `
             <div id="finalResultsPanel" style="min-height:600px;"></div>
           </div>
           <div style="display:flex;justify-content:center;align-items:center;">
-            <button id="btnGeneratePDF" style="padding:10px 24px;border:1px solid #2563eb;background:#2563eb;color:white;border-radius:8px;cursor:pointer;">
+            <button id="btnGeneratePDF" ${this.state.isGeneratingReport ? 'disabled' : ''} style="padding:10px 24px;border:1px solid #2563eb;background:${this.state.isGeneratingReport ? '#bfdbfe' : '#2563eb'};color:white;border-radius:8px;cursor:${this.state.isGeneratingReport ? 'not-allowed' : 'pointer'};font-weight:600;">
               ${this.state.isGeneratingReport ? 'Generating…' : 'Generate PDF Report'}
             </button>
           </div>
@@ -1706,7 +1706,14 @@ const statusBar = `
         });
 
         const btnPDF = document.getElementById('btnGeneratePDF');
-        if (btnPDF) btnPDF.onclick = this.generatePDFReport;
+        if (btnPDF) {
+          btnPDF.onclick = (event) => {
+            if (typeof event?.preventDefault === 'function') {
+              event.preventDefault();
+            }
+            this.generatePDFReport({ includePanel6: false });
+          };
+        }
       });
 
       return html;
@@ -1754,7 +1761,8 @@ const statusBar = `
           onSocialAuditConstraintChange: this.onSocialAuditConstraintChange,
           onSocialAuditCostReductionChange: this.onSocialAuditCostReductionChange,
           shouldAutoRunOptimization: this.state.shouldAutoRunOptimization,
-          lastOptimizationResult: this.state.lastOptimizationResult
+          lastOptimizationResult: this.state.lastOptimizationResult,
+          isGeneratingReport: this.state.isGeneratingReport
         });
         this.state.shouldAutoRunOptimization = false;
       });
@@ -1767,17 +1775,27 @@ const statusBar = `
 
   /* ------------------------ Export & Reporting ----------------------- */
 
-  async generatePDFReport() {
+   async generatePDFReport(request = {}) {
     if (typeof document === 'undefined') {
       console.warn('PDF report generation is only available in a browser environment.');
       return;
     }
 
+    if (this.state.isGeneratingReport) {
+      return;
+    }
+
+    const options = (request instanceof Event || request === null)
+      ? {}
+      : (typeof request === 'object' ? request : {});
+
+    const includePanel6 = Boolean(options.includePanel6);
+
     try {
       this.state.isGeneratingReport = true;
       this.updateUI();
 
-    await pdfGenerator.generateReport(this);
+      await pdfGenerator.generateReport(this, { includePanel6 });
 
       console.log('PDF generated');
     } catch (error) {

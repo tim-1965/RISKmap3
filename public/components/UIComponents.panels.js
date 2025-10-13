@@ -2227,8 +2227,9 @@ export function createCostAnalysisPanel(containerId, options) {
     socialAuditCostReduction = 50,
     onSocialAuditConstraintChange,
     onSocialAuditCostReductionChange,
-    shouldAutoRunOptimization = false,
-    lastOptimizationResult = null
+     shouldAutoRunOptimization = false,
+    lastOptimizationResult = null,
+    isGeneratingReport = false
   } = options;
 
   const mobile = isMobileView();
@@ -2488,7 +2489,7 @@ export function createCostAnalysisPanel(containerId, options) {
     <div class="cost-analysis-panel" style="background: white; padding: ${responsive('16px', '24px')}; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
 
       <!-- Header Section -->
-     <div style="display: flex; flex-direction: column; gap: ${responsive('12px', '16px')};">
+        <div id="panel6MapsSection" style="display: flex; flex-direction: column; gap: ${responsive('12px', '16px')};">
             <div style="background: white; padding: ${responsive('16px', '24px')}; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08); border-top: 4px solid #3b82f6;">
               <h4 style="font-size: ${responsive('16px', '18px')}; font-weight: 600; color: #1f2937; margin: 0 0 ${responsive('12px', '16px')} 0; text-align: center;">Optimization outcome</h4>
               <div style="display: grid; grid-template-columns: ${responsive('1fr', 'repeat(3, minmax(0, 1fr))')}; gap: ${responsive('12px', '16px')}; align-items: stretch;">
@@ -2538,6 +2539,7 @@ export function createCostAnalysisPanel(containerId, options) {
            <div id="costAnalysisMapCanvas" style="width: 100%; height: ${responsive('400px', '500px')}; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);"></div>
             <div id="costAnalysisMapLegend" style="display: flex; justify-content: center; flex-wrap: wrap; gap: 12px;"></div>
         </div>
+         <div id="panel6CostAssumptionsSection" style="display: flex; flex-direction: column; gap: ${responsive('16px', '24px')};">
         <h2 style="font-size: ${responsive('18px', '20px')}; font-weight: bold; color: #1f2937; margin: 0;">Cost Analysis & Budget Optimization</h2>
         <div style="background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px; display: grid; grid-template-columns: ${responsive('1fr', 'repeat(2, minmax(0, 1fr))')}; gap: 16px; align-items: stretch;">
           <div style="display: flex; flex-direction: column; gap: 6px;">
@@ -2640,7 +2642,9 @@ export function createCostAnalysisPanel(containerId, options) {
           </div>
         </div>
       </div>
+      </div>
 
+      <div id="panel6AllocationBreakdownSection" style="display: flex; flex-direction: column; gap: 24px;">
       <!-- Optimization Analysis -->
       <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 20px; border-radius: 12px; border: 1px solid #bbf7d0; margin-bottom: 24px;">
           <h3 style="font-size: 16px; font-weight: 600; color: #14532d; margin: 0;">Budget Optimization Analysis</h3>
@@ -2694,11 +2698,12 @@ export function createCostAnalysisPanel(containerId, options) {
           sanitizedToolPerSupplierCosts,
           sanitizedToolInternalHours,
           sanitizedToolRemedyInternalHours
-        )}
+      )}
       </div>
       </div>
 
       <!-- Risk Transformation Comparison -->
+      <div id="panel6RiskReductionSection" style="display: flex; flex-direction: column; gap: ${responsive('16px', '20px')};">
       <div id="riskTransformationComparison">
         ${renderRiskTransformationComparison(
           optimization,
@@ -2713,8 +2718,17 @@ export function createCostAnalysisPanel(containerId, options) {
           responsivenessStrategy,
           responsivenessEffectiveness,
           focus
-        )}
+         )}
        </div>
+      </div>
+
+      <div id="panel6ReportActions" style="margin-top: ${responsive('20px', '28px')}; display: flex; justify-content: center;">
+        <button id="btnGenerateFullPDF"
+                ${isGeneratingReport ? 'disabled' : ''}
+                style="padding: 10px 24px; border: 1px solid #2563eb; background: ${isGeneratingReport ? '#bfdbfe' : '#2563eb'}; color: white; border-radius: 8px; cursor: ${isGeneratingReport ? 'not-allowed' : 'pointer'}; font-weight: 600;">
+          ${isGeneratingReport ? 'Generating…' : 'Generate Full PDF Report'}
+        </button>
+      </div>
 
     </div>
   `;
@@ -3764,6 +3778,28 @@ function setupCostAnalysisEventListeners(handlers) {
 
     optimizationButtons.forEach(button => {
       button.addEventListener('click', handleOptimizationClick);
+    });
+  }
+
+  const fullReportButton = document.getElementById('btnGenerateFullPDF');
+  if (fullReportButton) {
+    fullReportButton.addEventListener('click', (event) => {
+      if (typeof event?.preventDefault === 'function') {
+        event.preventDefault();
+      }
+
+      if (typeof window === 'undefined') {
+        return;
+      }
+
+      const app = window.hrddApp;
+      if (app?.state?.isGeneratingReport) {
+        return;
+      }
+
+      if (app && typeof app.generatePDFReport === 'function') {
+        app.generatePDFReport({ includePanel6: true });
+      }
     });
   }
 }

@@ -235,7 +235,7 @@ export class PDFGenerator {
     }
   }
 
-  async generatePanelContent(appInstance, panelNumber) {
+  async generatePanelContent(appInstance, panelNumber, options = {}) {
     const originalPanel = appInstance.state.currentPanel;
     appInstance.state.currentPanel = panelNumber;
     appInstance.render();
@@ -371,9 +371,64 @@ export class PDFGenerator {
           if (fallbackCanvas) {
             sectionCanvases.push({ canvas: fallbackCanvas });
           }
+       }
+
+      return sectionCanvases;
+    }
+
+      if (panelNumber === 6) {
+        const sections = [];
+
+        const mapsSection = document.getElementById('panel6MapsSection');
+        if (mapsSection) {
+          const mapsCanvas = await this.captureElement(mapsSection);
+          if (mapsCanvas) {
+            sections.push({
+              canvas: mapsCanvas,
+              sectionTitle: 'Global Risk Outlook Maps'
+            });
+          }
         }
 
-        return sectionCanvases;
+        const assumptionsSection = document.getElementById('panel6CostAssumptionsSection');
+        if (assumptionsSection) {
+          const assumptionsCanvas = await this.captureElement(assumptionsSection);
+          if (assumptionsCanvas) {
+            sections.push({
+              canvas: assumptionsCanvas,
+              sectionTitle: 'Cost Assumptions'
+            });
+          }
+        }
+
+        const allocationSection = document.getElementById('panel6AllocationBreakdownSection');
+        if (allocationSection) {
+          const allocationCanvas = await this.captureElement(allocationSection);
+          if (allocationCanvas) {
+            sections.push({
+              canvas: allocationCanvas,
+              sectionTitle: 'Recommended Allocation & Budget Breakdown'
+            });
+          }
+        }
+
+        const riskSection = document.getElementById('panel6RiskReductionSection');
+        if (riskSection) {
+          const riskCanvas = await this.captureElement(riskSection);
+          if (riskCanvas) {
+            sections.push({
+              canvas: riskCanvas,
+              sectionTitle: 'Risk Reduction Analysis'
+            });
+          }
+        }
+
+        if (sections.length > 0) {
+          return sections;
+        }
+
+        const fallbackCanvas = await this.captureElement(panelContent);
+        return fallbackCanvas ? [{ canvas: fallbackCanvas }] : [];
       }
 
       const canvas = await this.captureElement(panelContent);
@@ -415,7 +470,7 @@ export class PDFGenerator {
     return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
   }
 
-  createCoverPage(pdf, appInstance, generatedAt) {
+  createCoverPage(pdf, appInstance, generatedAt, { panelCount = 5 } = {}) {
     const pageWidth = 210;
     const pageHeight = 297;
     const margin = 20;
@@ -513,7 +568,8 @@ export class PDFGenerator {
     pdf.setTextColor(100, 116, 139);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(10);
-    pdf.text('Insights calculated using the HRDD coverage-based methodology across five analytical panels.', margin, pageHeight - 30);
+    const panelLabel = panelCount === 1 ? 'panel' : 'panels';
+    pdf.text(`Insights calculated using the assumptions provided by you across ${panelCount} analytical ${panelLabel}.`, margin, pageHeight - 30);
 
     // Reset text color for subsequent pages
     pdf.setTextColor(33, 37, 41);
@@ -582,19 +638,23 @@ export class PDFGenerator {
     pdf.text(`Page ${pageNumber}`, pageWidth - margin - 20, margin + 8);
   }
 
-  async generateReport(appInstance) {
+ async generateReport(appInstance, options = {}) {
     const modal = this.createLoadingModal();
-    
+
     try {
       this.updateProgress('Loading PDF libraries...');
       await this.loadRequiredLibraries();
 
-       const jsPDFConstructor = this.ensureJsPDFAvailable();
+      const jsPDFConstructor = this.ensureJsPDFAvailable();
       if (!jsPDFConstructor) {
         throw new Error('jsPDF is not available');
       }
 
-       const pdf = new jsPDFConstructor({
+      const includePanel6 = Boolean(options.includePanel6);
+      const panel6Enabled = typeof window !== 'undefined' ? Boolean(window.hrddApp?.ENABLE_PANEL_6) : false;
+      const shouldIncludePanel6 = includePanel6 && panel6Enabled;
+
+      const pdf = new jsPDFConstructor({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
@@ -604,20 +664,26 @@ export class PDFGenerator {
       const panelTitles = {
         1: 'Global Risks',
         2: 'Baseline Risk',
-        3: 'HRDD Strategy',
-        4: 'Response Strategy',
+        3: 'Tools Strategy',
+        4: 'Response Approach',
         5: 'Managed Risk'
       };
 
+      if (shouldIncludePanel6) {
+        panelTitles[6] = 'Budget Optimization';
+      }
+
       this.updateProgress('Designing cover page...');
-      this.createCoverPage(pdf, appInstance, now);
+      const panelCount = shouldIncludePanel6 ? 6 : 5;
+      this.createCoverPage(pdf, appInstance, now, { panelCount });
 
       // Generate each panel
       let currentPageNumber = 2;
-      for (let panelNumber = 1; panelNumber <= 5; panelNumber++) {
+      const maxPanel = shouldIncludePanel6 ? 6 : 5;
+      for (let panelNumber = 1; panelNumber <= maxPanel; panelNumber++) {
         this.updateProgress(`Capturing Panel ${panelNumber}: ${panelTitles[panelNumber]}...`);
 
-         const panelSections = await this.generatePanelContent(appInstance, panelNumber);
+        const panelSections = await this.generatePanelContent(appInstance, panelNumber, options);
 
         if (Array.isArray(panelSections) && panelSections.length > 0) {
           const validSections = panelSections.filter(section => section && section.canvas);
@@ -635,23 +701,22 @@ export class PDFGenerator {
 
           currentPageNumber += validSections.length;
         }
-        
+
         // Add a small delay between panels
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-
       this.updateProgress('Finalizing PDF...');
-      
+
       // Generate filename with timestamp
       const timestamp = now.toISOString().slice(0, 10);
-      const filename = `HRDD_Risk_Assessment_Report_${timestamp}.pdf`;
-      
+      const filename = `Labour_Rights_Tools_Assessment_Report_${timestamp}.pdf`;
+
       // Save the PDF
       pdf.save(filename);
-      
+
       this.updateProgress('Report generated successfully!');
-      
+
       // Show success message briefly before closing
       setTimeout(() => {
         this.removeLoadingModal();
@@ -660,7 +725,7 @@ export class PDFGenerator {
     } catch (error) {
       console.error('Error generating PDF report:', error);
       this.updateProgress('Error generating report. Please try again.');
-      
+
       setTimeout(() => {
         this.removeLoadingModal();
         alert('Failed to generate PDF report. Please ensure you have a stable internet connection and try again.');
