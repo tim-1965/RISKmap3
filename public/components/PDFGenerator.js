@@ -563,10 +563,11 @@ export class PDFGenerator {
         return sectionCanvases;
       }
 
-      if (panelNumber === 6) {
+        if (panelNumber === 6) {
         const sections = [];
 
-         if (mapsSection) {
+        const mapsSection = document.getElementById('panel6MapsSection');
+        if (mapsSection) {
           const optimizedButton = mapsSection.querySelector('.cost-map-mode[data-map-mode="optimized"]');
           const baselineButton = mapsSection.querySelector('.cost-map-mode[data-map-mode="baseline"]');
           const previousMode = this.getActiveMapMode(mapsSection) || (baselineButton?.dataset?.mapMode) || 'baseline';
@@ -636,7 +637,7 @@ export class PDFGenerator {
         }
 
         if (budgetBreakdown) {
-           const breakdownCanvas = await this.withForcedOverflowVisible(budgetBreakdown, () =>
+          const breakdownCanvas = await this.withForcedOverflowVisible(budgetBreakdown, () =>
             this.captureElement(budgetBreakdown),
             { expandScrollable: true }
           );
