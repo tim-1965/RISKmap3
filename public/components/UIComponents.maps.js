@@ -3,6 +3,41 @@ import { riskEngine } from './RiskEngine.js';
 let d3LoadingPromise = null;
 let topojsonLoadingPromise = null;
 
+function getContrastingTextColor(hexColor) {
+  if (typeof hexColor !== 'string') {
+    return '#0f172a';
+  }
+
+  const normalized = hexColor.trim().replace('#', '');
+  if (![3, 6].includes(normalized.length)) {
+    return '#0f172a';
+  }
+
+  const expanded = normalized.length === 3
+    ? normalized.split('').map(char => char + char).join('')
+    : normalized;
+
+  const parsed = Number.parseInt(expanded, 16);
+  if (!Number.isFinite(parsed)) {
+    return '#0f172a';
+  }
+
+  const r = (parsed >> 16) & 255;
+  const g = (parsed >> 8) & 255;
+  const b = parsed & 255;
+
+  // Relative luminance calculation (sRGB)
+  const [lr, lg, lb] = [r, g, b].map(channel => {
+    const srgb = channel / 255;
+    return srgb <= 0.03928
+      ? srgb / 12.92
+      : Math.pow((srgb + 0.055) / 1.055, 2.4);
+  });
+
+  const luminance = 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+
+  return luminance > 0.6 ? '#0f172a' : '#f8fafc';
+}
 async function loadD3() {
   if (typeof d3 !== 'undefined') return;
   if (d3LoadingPromise) return d3LoadingPromise;
@@ -701,18 +736,36 @@ function createMapLegend(containerId) {
   container.innerHTML = '';
   const title = document.createElement('h4');
   title.textContent = 'Risk Levels:';
-  title.style.cssText = 'font-size: 14px; font-weight: 500; margin-bottom: 8px;';
+  title.style.cssText = 'font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #0f172a; text-align: left;';
   container.appendChild(title);
 
   const legendContainer = document.createElement('div');
-  legendContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;';
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
+  legendContainer.style.cssText = `
+    display: flex;
+    flex-wrap: wrap;
+    gap: ${isMobile ? '6px' : '12px'};
+    justify-content: ${isMobile ? 'flex-start' : 'center'};
+    width: 100%;
+  `;
 
   riskEngine.getRiskBandDefinitions().forEach(band => {
     const legendItem = document.createElement('div');
-    legendItem.style.cssText = 'display: flex; align-items: center; gap: 4px;';
+    legendItem.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      border-radius: 8px;
+      padding: ${isMobile ? '6px 8px' : '6px 10px'};
+      box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06);
+      flex: ${isMobile ? '1 1 calc(50% - 6px)' : '0 0 auto'};
+      min-width: ${isMobile ? '135px' : '0'};
+    `;
     legendItem.innerHTML = `
-      <div style="width: 16px; height: 16px; border: 1px solid #ccc; background-color: ${band.color};"></div>
-      <span style="font-size: 12px;">${band.name} (${band.range})</span>
+      <div style="width: 16px; height: 16px; border: 1px solid #cbd5f5; border-radius: 4px; background-color: ${band.color};"></div>
+      <span style="font-size: ${isMobile ? '11px' : '12px'}; font-weight: 500; color: #0f172a; white-space: normal;">${band.name} (${band.range})</span>
     `;
     legendContainer.appendChild(legendItem);
   });
@@ -997,20 +1050,21 @@ function createSimpleMapGrid(containerId, { countries, countryRisks, selectedCou
   const mapGrid = document.getElementById(`simpleMapGrid-${mapType}`);
   if (!mapGrid || displayCountries.length === 0) return;
 
-  displayCountries.forEach(country => {
+   displayCountries.forEach(country => {
     const risk = countryRisks[country.isoCode] || 0;
     const isSelected = selectedCountries.includes(country.isoCode);
     const numericRisk = Number.isFinite(risk) ? risk : Number.isFinite(Number(risk)) ? Number(risk) : 0;
     const tileOpacity = mapType === 'global' ? 1 : (numericRisk > 0 ? 0.9 : 0.4);
+    const riskColor = riskEngine.getRiskColor(numericRisk);
+    const textColor = getContrastingTextColor(riskColor);
 
     const countryTile = document.createElement('div');
     countryTile.style.cssText = `
       padding: 12px 8px; border-radius: 4px; border: 2px solid ${isSelected ? '#000' : '#e5e7eb'};
-      cursor: ${interactive ? 'pointer' : 'default'}; font-size: 11px; font-weight: 500; color: white; text-align: center;
-      background-color: ${riskEngine.getRiskColor(numericRisk)}; opacity: ${tileOpacity};
-      min-height: 60px; display: flex; flex-direction: column; justify-content: center;
+      cursor: ${interactive ? 'pointer' : 'default'}; font-size: 11px; font-weight: 600; color: ${textColor}; text-align: center;
+      background-color: ${riskColor}; opacity: ${tileOpacity};
+      min-height: 60px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 4px 8px rgba(15, 23, 42, 0.08);
     `;
-
     countryTile.innerHTML = `<div>${country.name.length > 12 ? country.isoCode : country.name}</div>`;
 
     if (interactive && onCountrySelect) {

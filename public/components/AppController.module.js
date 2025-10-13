@@ -1347,7 +1347,7 @@ const statusBar = `
         #hrddMainContent::-webkit-scrollbar-thumb:hover {
           background: #64748b;
         }
-        @media (max-width: 768px) {
+          @media (max-width: 768px) {
           input[type="range"] {
             min-height: 44px;
             padding: 12px 0;
@@ -1359,6 +1359,29 @@ const statusBar = `
           button {
             min-height: 44px;
             min-width: 44px;
+          }
+          #hrddMainContent div[style*="display:flex"][style*="gap"] {
+            flex-wrap: wrap;
+          }
+          #hrddMainContent div[style*="display:flex"][style*="gap"][style*="align-items:center"] {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          #hrddMainContent div[style*="display:flex"][style*="justify-content: space-between"] {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+          }
+          #hrddMainContent input[type="text"],
+          #hrddMainContent input[type="number"],
+          #hrddMainContent input[type="email"],
+          #hrddMainContent select,
+          #hrddMainContent textarea {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          #hrddMainContent label {
+            width: 100% !important;
           }
           div[style*="grid-template-columns: repeat(3"] {
             grid-template-columns: 1fr !important;
