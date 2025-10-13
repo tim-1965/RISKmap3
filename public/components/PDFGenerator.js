@@ -391,28 +391,44 @@ export class PDFGenerator {
       return 1.35;
     })();
 
+    const elementRect = typeof element.getBoundingClientRect === 'function'
+      ? element.getBoundingClientRect()
+      : null;
+
     const computedWidth = Math.max(
       Number.isFinite(element.scrollWidth) ? element.scrollWidth : 0,
-      Number.isFinite(element.offsetWidth) ? element.offsetWidth : 0
+      Number.isFinite(element.offsetWidth) ? element.offsetWidth : 0,
+      elementRect && Number.isFinite(elementRect.width) ? elementRect.width : 0
     ) || element.clientWidth || 0;
 
     const computedHeight = Math.max(
       Number.isFinite(element.scrollHeight) ? element.scrollHeight : 0,
-      Number.isFinite(element.offsetHeight) ? element.offsetHeight : 0
+      Number.isFinite(element.offsetHeight) ? element.offsetHeight : 0,
+      elementRect && Number.isFinite(elementRect.height) ? elementRect.height : 0
     ) || element.clientHeight || 0;
+
+    const normalizedWidth = Math.max(1, Math.round(computedWidth));
+    const normalizedHeight = Math.max(1, Math.round(computedHeight));
+    const viewportWidth = typeof window !== 'undefined' && Number.isFinite(window.innerWidth)
+      ? Math.round(window.innerWidth)
+      : 0;
+    const viewportHeight = typeof window !== 'undefined' && Number.isFinite(window.innerHeight)
+      ? Math.round(window.innerHeight)
+      : 0;
 
     const defaultOptions = {
       scale: pixelRatio,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
-      width: computedWidth,
-      height: computedHeight,
+      width: normalizedWidth,
+      height: normalizedHeight,
+      windowWidth: Math.max(normalizedWidth, viewportWidth),
+      windowHeight: Math.max(normalizedHeight, viewportHeight),
       scrollX: 0,
       scrollY: 0,
       ...options
     };
-
     try {
       // Handle SVG elements specifically (like D3 maps)
       const svgElements = element.querySelectorAll('svg');
@@ -424,9 +440,54 @@ export class PDFGenerator {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           const img = new Image();
-          
-          canvas.width = svg.clientWidth || 800;
-          canvas.height = svg.clientHeight || 400;
+
+          const svgRect = typeof svg.getBoundingClientRect === 'function'
+            ? svg.getBoundingClientRect()
+            : null;
+          const svgWidthAttribute = parseFloat(svg.getAttribute('width'));
+          const svgHeightAttribute = parseFloat(svg.getAttribute('height'));
+          const viewBox = svg.viewBox || svg.getAttribute('viewBox');
+
+          const [derivedWidth, derivedHeight] = (() => {
+            if (viewBox && typeof viewBox === 'object' && 'baseVal' in viewBox) {
+              const { width: vbWidth, height: vbHeight } = viewBox.baseVal || {};
+              if (Number.isFinite(vbWidth) && Number.isFinite(vbHeight) && vbWidth > 0 && vbHeight > 0) {
+                return [vbWidth, vbHeight];
+              }
+            }
+
+            if (typeof viewBox === 'string') {
+              const parts = viewBox.split(/\s+/).map(value => parseFloat(value));
+              if (parts.length === 4 && parts.every(value => Number.isFinite(value))) {
+                const [, , vbWidth, vbHeight] = parts;
+                if (vbWidth > 0 && vbHeight > 0) {
+                  return [vbWidth, vbHeight];
+                }
+              }
+            }
+
+            return [null, null];
+          })();
+
+          const widthCandidates = [
+            Number.isFinite(svg.clientWidth) ? svg.clientWidth : 0,
+            Number.isFinite(svgRect?.width) ? svgRect.width : 0,
+            Number.isFinite(svgWidthAttribute) ? svgWidthAttribute : 0,
+            Number.isFinite(derivedWidth) ? derivedWidth : 0
+          ].filter(value => Number.isFinite(value) && value > 0);
+
+          const heightCandidates = [
+            Number.isFinite(svg.clientHeight) ? svg.clientHeight : 0,
+            Number.isFinite(svgRect?.height) ? svgRect.height : 0,
+            Number.isFinite(svgHeightAttribute) ? svgHeightAttribute : 0,
+            Number.isFinite(derivedHeight) ? derivedHeight : 0
+          ].filter(value => Number.isFinite(value) && value > 0);
+
+          const safeWidth = Math.max(1, ...(widthCandidates.length ? widthCandidates : [800]));
+          const safeHeight = Math.max(1, ...(heightCandidates.length ? heightCandidates : [400]));
+
+          canvas.width = Math.round(safeWidth);
+          canvas.height = Math.round(safeHeight);
           
           const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
           const url = URL.createObjectURL(svgBlob);
@@ -443,7 +504,12 @@ export class PDFGenerator {
             img.src = url;
           });
           
-          svgDataUrls.push({ svg, dataUrl: canvas.toDataURL('image/png') });
+         img.setAttribute('width', `${canvas.width}`);
+          img.setAttribute('height', `${canvas.height}`);
+          img.style.width = `${canvas.width}px`;
+          img.style.height = `${canvas.height}px`;
+
+          svgDataUrls.push({ svg, dataUrl: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height });
         } catch (error) {
           console.warn('Failed to convert SVG to image:', error);
         }
@@ -451,11 +517,25 @@ export class PDFGenerator {
 
       // Temporarily replace SVGs with images
       const originalSvgs = [];
-      svgDataUrls.forEach(({ svg, dataUrl }) => {
+      svgDataUrls.forEach(({ svg, dataUrl, width, height }) => {
         const img = document.createElement('img');
         img.src = dataUrl;
-        img.style.width = svg.style.width || `${svg.clientWidth}px`;
-        img.style.height = svg.style.height || `${svg.clientHeight}px`;
+        const computedWidthStyle = (() => {
+          if (svg.style?.width) return svg.style.width;
+          if (Number.isFinite(width)) return `${width}px`;
+          if (Number.isFinite(svg.clientWidth) && svg.clientWidth > 0) return `${svg.clientWidth}px`;
+          return '100%';
+        })();
+
+        const computedHeightStyle = (() => {
+          if (svg.style?.height) return svg.style.height;
+          if (Number.isFinite(height)) return `${height}px`;
+          if (Number.isFinite(svg.clientHeight) && svg.clientHeight > 0) return `${svg.clientHeight}px`;
+          return '100%';
+        })();
+
+        img.style.width = computedWidthStyle;
+        img.style.height = computedHeightStyle;
         img.style.maxWidth = '100%';
         originalSvgs.push({ svg, img });
         svg.parentNode.insertBefore(img, svg);
@@ -467,7 +547,9 @@ export class PDFGenerator {
       // Restore original SVGs
       originalSvgs.forEach(({ svg, img }) => {
         svg.style.display = '';
-        img.remove();
+        if (img && typeof img.remove === 'function') {
+          img.remove();
+        }
       });
 
       return canvas;
