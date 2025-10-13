@@ -1607,6 +1607,9 @@ const statusBar = `
         <div style="display:flex;flex-direction:column;gap:16px;">
           ${renderPanelDescription(panel)}
           <div id="responseRiskSummary" style="min-height:300px;"></div>
+          <div style="background-color:#fef3c7;border:1px solid #f59e0b;border-radius:12px;padding:20px;line-height:1.6;color:#92400e;font-size:14px;">
+            On this panel, indicate how effective the 6 different tools are at supporting, sustaining and encouraging remedy and good conduct by suppliers. In the left hand column, move the slider to show how effective each tool as <strong>"Remedy Support"</strong>. That means providing clear feedback to each supplier about findings and what should be done about them, and monitoring whether or not remedies are implemented and then sustained. Tools based on continuous feedback from workers have this capability built-in. In the right-hand column, move the slider to show how effective each tool is at <strong>"Promoting Good Conduct"</strong> amongst suppliers. For example, SAQs make the standards clear to suppliers that they are supposed to observed. Audits and workers surveys can be repeated and so suppliers then become aware that there will be follow-up checks. Continuous worker voice has this approach built-in, since feedback from workers is uninterrupted.
+          </div>
            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:stretch;" id="panel4Grid">
             <div id="responsivenessPanel" style="min-height:600px;"></div>
             <div id="responsivenessEffectivenessPanel" style="min-height:600px;"></div>
