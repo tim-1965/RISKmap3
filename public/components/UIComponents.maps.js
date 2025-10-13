@@ -1146,7 +1146,8 @@ function renderGlobalD3Map(worldData, { container, countries, countryRisks, widt
       .style('stroke-width', 0.6)
       .style('fill-opacity', 1)
       .style('opacity', 1)
-      .on('click', (event) => {
+       .on('click', (event) => {
+        hideMapTooltip();
         event.preventDefault();
         event.stopPropagation();
       })
@@ -1445,7 +1446,8 @@ function renderD3Map(worldData, { container, countries, countryRisks, selectedCo
       .style('filter', d => (hasSelections && selectedSet.has(d.__isoCode)
         ? 'drop-shadow(0 0 6px rgba(15, 23, 42, 0.35))'
         : 'none'))
-      .on('click', (event, d) => {
+       .on('click', (event, d) => {
+        hideMapTooltip();
         const countryId = d.__isoCode;
         if (!countryId) return;
         if (onCountrySelect) onCountrySelect(countryId);

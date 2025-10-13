@@ -505,7 +505,7 @@ export function createHRDDStrategyPanel(containerId, { strategy, onStrategyChang
   container.innerHTML = `
     <div class="hrdd-strategy-panel" style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; height: 100%;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h2 style="font-size: 20px; font-weight: bold; color: #1f2937;">Labour rights DD tools in use</h2>
+        <h2 style="font-size: 20px; font-weight: bold; color: #1f2937;">Labour rights DD tools</h2>
         <button id="resetStrategy" style="padding: 10px 20px; background-color: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
           Reset to Default
         </button>
@@ -2062,12 +2062,16 @@ export function updateSelectedCountriesDisplay(selectedCountries, countries, cou
     const volume = safeVolumes[countryCode] ?? 10;
     let currentVolume = Number.isFinite(Number(volume)) ? Number(volume) : 10;
 
-    const countryItem = document.createElement('div');
+     const countryItem = document.createElement('div');
     countryItem.style.cssText = `
       display: flex; align-items: center; justify-content: space-between; padding: 16px;
       ${index > 0 ? 'border-top: 1px solid #e5e7eb;' : ''}
       background-color: ${index % 2 === 0 ? '#ffffff' : '#f9fafb'};
     `;
+
+    const weightingLabelText = isMobileView()
+      ? 'Weighting:'
+      : 'Weighting (how much of your supply chain is here?):';
 
     countryItem.innerHTML = `
       <div style="flex: 1; display: flex; align-items: center; gap: 12px;">
@@ -2077,7 +2081,7 @@ export function updateSelectedCountriesDisplay(selectedCountries, countries, cou
       </div>
       <div style="display: flex; align-items: center; gap: 12px;">
         <div style="display: flex; align-items: center; gap: 6px;">
-          <label style="font-size: 14px; color: #6b7280; font-weight: 500;">Weighting (how much of your supply chain is here?):</label>
+          <label style="font-size: 14px; color: #6b7280; font-weight: 500;">${weightingLabelText}</label>
           <input type="number" min="0" value="${currentVolume}" id="volume_${countryCode}"
                  style="width: 80px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; text-align: center;">
         </div>
