@@ -1297,8 +1297,8 @@ const statusBar = `
             ${statusBar}
           </div>
         </header>
-       <button onclick="window.hrddApp.setCurrentPanel(${panel})"␊
-          style="padding:${isMobile ? '6px 8px' : '6px 12px'};
+        <main id="hrddMainContent"
+            style="position:absolute;top:${isMobile ? '160px' : '220px'};left:0;right:0;bottom:0;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;">
           <div style="width:100%;max-width:${isMobile ? '100%' : '1600px'};margin:0 auto;padding:${isMobile ? '12px 12px 80px' : '20px 20px 60px'};box-sizing:border-box;">
             <div id="panelContent">
               ${this.renderCurrentPanel()}
