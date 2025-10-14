@@ -695,24 +695,9 @@ onSocialAuditCostReductionChange(percentage) {
     // Fast re-render for panels that depend on managed/baseline numbers
     if (!this.containerElement) return;
 
-    const apiIndicator = this.containerElement.querySelector('#hrddApiIndicator');
-    if (apiIndicator) {
-      apiIndicator.style.backgroundColor = this.state.apiHealthy ? '#22c55e' : '#ef4444';
-    }
-
-    const apiStatus = this.containerElement.querySelector('#hrddApiStatus');
-    if (apiStatus) {
-      apiStatus.textContent = `API ${this.state.apiHealthy ? 'Connected' : 'Disconnected'}`;
-    }
-
-    const countryCountEl = this.containerElement.querySelector('#hrddCountryCount');
+     const countryCountEl = this.containerElement.querySelector('#hrddCountryCount');
     if (countryCountEl) {
       countryCountEl.textContent = this.state.countries.length;
-    }
-
-    const selectedCountEl = this.containerElement.querySelector('#hrddSelectedCount');
-    if (selectedCountEl) {
-      selectedCountEl.textContent = this.state.selectedCountries.length;
     }
 
     const lastUpdatedGroup = this.containerElement.querySelector('#hrddLastUpdatedGroup');
@@ -725,8 +710,8 @@ onSocialAuditCostReductionChange(percentage) {
         } catch (error) {
           formatted = '';
         }
-        lastUpdatedGroup.style.display = 'flex';
-        lastUpdatedEl.textContent = formatted ? `Best on larger screens. Updated: ${formatted}` : '';
+        lastUpdatedGroup.style.display = 'inline-flex';
+        lastUpdatedEl.textContent = formatted ? `Updated ${formatted}` : '';
       } else {
         lastUpdatedGroup.style.display = 'none';
         lastUpdatedEl.textContent = '';
@@ -924,16 +909,6 @@ updatePanel2Components() {
   });
 
   // Update header stats
-  const apiIndicator = this.containerElement.querySelector('#hrddApiIndicator');
-  if (apiIndicator) {
-    apiIndicator.style.backgroundColor = this.state.apiHealthy ? '#22c55e' : '#ef4444';
-  }
-
-  const selectedCountEl = this.containerElement.querySelector('#hrddSelectedCount');
-  if (selectedCountEl) {
-    selectedCountEl.textContent = this.state.selectedCountries.length;
-  }
-
   const lastUpdatedGroup = this.containerElement.querySelector('#hrddLastUpdatedGroup');
   const lastUpdatedEl = this.containerElement.querySelector('#hrddLastUpdated');
   if (lastUpdatedGroup && lastUpdatedEl && this.state.lastUpdate) {
@@ -943,8 +918,8 @@ updatePanel2Components() {
     } catch (error) {
       formatted = '';
     }
-    lastUpdatedGroup.style.display = 'flex';
-    lastUpdatedEl.textContent = formatted ? `Best on larger screens. Updated: ${formatted}` : '';
+    lastUpdatedGroup.style.display = 'inline-flex';
+    lastUpdatedEl.textContent = formatted ? `Updated ${formatted}` : '';
   }
 }
 
@@ -1218,46 +1193,45 @@ updatePanel2Components() {
     }
 
     const maxPanels = ENABLE_PANEL_6 ? 6 : 5;
-    const navButtons = Array.from({length: maxPanels}, (_, i) => i + 1)
+     const navButtons = Array.from({length: maxPanels}, (_, i) => i + 1)
       .map(panel => `
               <button onclick="window.hrddApp.setCurrentPanel(${panel})"
-                      style="padding:${isMobile ? '6px 8px' : '6px 12px'};
+                      style="padding:${isMobile ? '4px 8px' : '6px 12px'};
                              border:1px solid ${this.state.currentPanel === panel ? '#2563eb' : '#d1d5db'};
-                             background:${this.state.currentPanel === panel ? '#2563eb' : 'rgba(255,255,255,0.9)'};
+                             background:${this.state.currentPanel === panel ? '#2563eb' : 'rgba(255,255,255,0.95)'};
                              color:${this.state.currentPanel === panel ? 'white' : '#475569'};
                              border-radius:9999px;
                              cursor:pointer;
                              font-weight:600;
                              transition:all .2s;
                              font-size:${isMobile ? '10px' : '12px'};
-                             box-shadow:${this.state.currentPanel === panel ? '0 8px 18px rgba(37,99,235,.25)' : '0 3px 8px rgba(15,23,42,.08)'};
+                             box-shadow:${this.state.currentPanel === panel ? '0 6px 12px rgba(37,99,235,.2)' : '0 2px 6px rgba(15,23,42,.06)'};
                              min-width:${isMobile ? '36px' : 'auto'};
-                             min-height:${isMobile ? '32px' : 'auto'};
+                             min-height:${isMobile ? '30px' : 'auto'};
                              flex:${isMobile ? '1' : 'initial'};
-                             max-width:${isMobile ? '56px' : 'none'};">
+                             max-width:${isMobile ? '52px' : 'none'};">
                 ${isMobile ? panel : `${panel}. ${panelTitles[panel]}`}
               </button>
                   `)
       .join('');
-     const contentMaxWidth = isMobile ? '720px' : '1600px';
+    const headerTitle = isMobile
+      ? '<h1 style="font-size:18px;font-weight:700;color:#1f2937;margin:0;line-height:1.2;">Supply Chain Labour Tools</h1>'
+      : '<h1 style="font-size:24px;font-weight:700;color:#1f2937;margin:0;line-height:1.25;">How effective are your labour rights due diligence tools?</h1>';
+    const instructionText = `<p style="font-size:${isMobile ? '12px' : '14px'};color:#4b5563;margin:0;line-height:1.4;">Work across from panel 1 to panel ${ENABLE_PANEL_6 ? '6' : '5'} to review your analysis and results.</p>`;
+    const summaryRow = `
+      <div style="display:flex;align-items:center;justify-content:center;gap:${isMobile ? '6px' : '12px'};font-size:${isMobile ? '11px' : '13px'};color:#475569;flex-wrap:wrap;">
+        <span><strong id="hrddCountryCount">${this.state.countries.length}</strong> countries loaded</span>
+        <span id="hrddLastUpdatedGroup" style="display:${formattedLastUpdate ? 'inline-flex' : 'none'};align-items:center;gap:${isMobile ? '4px' : '6px'};">
+          <span style="opacity:.4;">•</span>
+          <span id="hrddLastUpdated">${formattedLastUpdate ? `Updated ${formattedLastUpdate}` : ''}</span>
+        </span>
+      </div>
+    `;
+    const contentMaxWidth = isMobile ? '720px' : '1600px';
     const contentPadding = isMobile
       ? 'calc(env(safe-area-inset-top, 0px) + 10px) calc(env(safe-area-inset-right, 0px) + 14px) calc(env(safe-area-inset-bottom, 0px) + 72px) calc(env(safe-area-inset-left, 0px) + 14px)'
       : '20px 20px 60px';
-const statusBar = `
-      <div style="display:flex;align-items:center;justify-content:center;gap:${isMobile ? '6px' : '8px'};font-size:${isMobile ? '10px' : '12px'};color:#475569;flex-wrap:wrap;">
-          <span id="hrddApiIndicator" style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${this.state.apiHealthy ? '#22c55e' : '#ef4444'};"></span>
-          <span id="hrddApiStatus">API ${this.state.apiHealthy ? 'Connected' : 'Disconnected'}</span>
-        </div>
-        <div style="opacity:.5;">•</div>
-        <div><span id="hrddCountryCount">${this.state.countries.length}</span> Countries</div>
-        <div style="opacity:.5;">•</div>
-        <div><span id="hrddSelectedCount">${this.state.selectedCountries.length}</span> Selected</div>
-        <div id="hrddLastUpdatedGroup" style="display:${formattedLastUpdate ? 'flex' : 'none'};align-items:center;gap:6px;">
-          <div style="opacity:.5;">•</div>
-          <span id="hrddLastUpdated">${formattedLastUpdate ? `Best on larger screens. Updated: ${formattedLastUpdate}` : ''}</span>
-        </div>
-      </div>
-    `;
+    const statusBar = summaryRow;
 
     const mobilePanelNavigation = !isMobile ? '' : `
       <div style="position:fixed;left:0;right:0;bottom:0;padding:0 0 calc(env(safe-area-inset-bottom, 0px) + 12px);display:flex;justify-content:center;z-index:999;background:linear-gradient(180deg, rgba(248,250,252,0) 0%, rgba(248,250,252,0.9) 45%);">
@@ -1282,18 +1256,10 @@ const statusBar = `
 
     this.containerElement.innerHTML = `
       <div id="hrddAppContainer" style="position:relative;width:100%;height:100vh;overflow:hidden;background-color:#f8fafc;">
-       <header id="hrddHeader" style="position:absolute;top:0;left:0;right:0;z-index:1000;background:rgba(248,250,252,0.98);padding:${isMobile ? '6px 10px 4px' : '20px 20px 12px'};box-sizing:border-box;border-bottom:1px solid rgba(226,232,240,0.5);backdrop-filter:blur(10px);">
-          <div style="width:100%;max-width:${isMobile ? '720px' : '1600px'};margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:${isMobile ? '6px' : '12px'};text-align:center;padding:${isMobile ? '8px 12px' : '12px 20px'};background:rgba(255,255,255,0.9);border:1px solid rgba(226,232,240,0.8);border-radius:${isMobile ? '10px' : '12px'};box-shadow:0 6px 18px rgba(15,23,42,0.08);box-sizing:border-box;">
-            ${isMobile ? `
-              <div style="display:flex;flex-direction:column;gap:4px;align-items:center;width:100%;">
-                <h1 style="font-size:16px;font-weight:700;color:#1f2937;margin:0;line-height:1.2;">Supply Chain Labour Tools</h1>
-              </div>
-            ` : `
-              <div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
-                <h1 style="font-size:28px;font-weight:700;color:#1f2937;margin:0;line-height:1.25;">How effective are your labour rights due diligence tools?</h1>
-                <p style="font-size:15px;color:#4b5563;margin:0;">Start with panel 1 and work across to see the results on panel 5. Then use the optimizer on panel 6.</p>
-              </div>
-            `}
+       <header id="hrddHeader" style="position:absolute;top:0;left:0;right:0;z-index:1000;background:rgba(248,250,252,0.97);padding:${isMobile ? '10px 12px' : '14px 24px'};box-sizing:border-box;border-bottom:1px solid rgba(226,232,240,0.5);backdrop-filter:blur(8px);">
+          <div style="width:100%;max-width:${isMobile ? '720px' : '1400px'};margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:${isMobile ? '6px' : '10px'};text-align:center;">
+            ${headerTitle}
+            ${instructionText}
             <div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;width:100%;">
               ${navButtons}
             </div>
@@ -1301,7 +1267,7 @@ const statusBar = `
           </div>
         </header>
         <main id="hrddMainContent"
-            style="position:absolute;top:${isMobile ? '160px' : '220px'};left:0;right:0;bottom:0;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;display:flex;justify-content:center;">
+            style="position:absolute;top:${isMobile ? '130px' : '160px'};left:0;right:0;bottom:0;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;display:flex;justify-content:center;">
           <div style="width:100%;max-width:${contentMaxWidth};margin:0 auto;padding:${contentPadding};box-sizing:border-box;flex:1 1 auto;">
             <div id="panelContent">
               ${this.renderCurrentPanel()}
