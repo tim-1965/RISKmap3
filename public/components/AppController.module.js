@@ -695,9 +695,18 @@ onSocialAuditCostReductionChange(percentage) {
     // Fast re-render for panels that depend on managed/baseline numbers
     if (!this.containerElement) return;
 
-     const countryCountEl = this.containerElement.querySelector('#hrddCountryCount');
+    const selectedCountryCount = Array.isArray(this.state.selectedCountries)
+      ? this.state.selectedCountries.length
+      : 0;
+
+    const countryCountEl = this.containerElement.querySelector('#hrddCountryCount');
     if (countryCountEl) {
-      countryCountEl.textContent = this.state.countries.length;
+      countryCountEl.textContent = selectedCountryCount;
+    }
+
+    const countryCountLabelEl = this.containerElement.querySelector('#hrddCountryCountLabel');
+    if (countryCountLabelEl) {
+      countryCountLabelEl.textContent = selectedCountryCount === 1 ? 'country selected' : 'countries selected';
     }
 
     const lastUpdatedGroup = this.containerElement.querySelector('#hrddLastUpdatedGroup');
@@ -1218,9 +1227,13 @@ updatePanel2Components() {
       ? '<h1 style="font-size:18px;font-weight:700;color:#1f2937;margin:0;line-height:1.2;">Supply Chain Labour Tools</h1>'
       : '<h1 style="font-size:24px;font-weight:700;color:#1f2937;margin:0;line-height:1.25;">How effective are your labour rights due diligence tools?</h1>';
     const instructionText = `<p style="font-size:${isMobile ? '12px' : '14px'};color:#4b5563;margin:0;line-height:1.4;">Work across from panel 1 to panel ${ENABLE_PANEL_6 ? '6' : '5'} to review your analysis and results.</p>`;
+    const selectedCountryCount = Array.isArray(this.state.selectedCountries)
+      ? this.state.selectedCountries.length
+      : 0;
+    const selectedCountryLabel = selectedCountryCount === 1 ? 'country selected' : 'countries selected';
     const summaryRow = `
       <div style="display:flex;align-items:center;justify-content:center;gap:${isMobile ? '6px' : '12px'};font-size:${isMobile ? '11px' : '13px'};color:#475569;flex-wrap:wrap;">
-        <span><strong id="hrddCountryCount">${this.state.countries.length}</strong> countries loaded</span>
+        <span><strong id="hrddCountryCount">${selectedCountryCount}</strong> <span id="hrddCountryCountLabel">${selectedCountryLabel}</span></span>
         <span id="hrddLastUpdatedGroup" style="display:${formattedLastUpdate ? 'inline-flex' : 'none'};align-items:center;gap:${isMobile ? '4px' : '6px'};">
           <span style="opacity:.4;">•</span>
           <span id="hrddLastUpdated">${formattedLastUpdate ? `Updated ${formattedLastUpdate}` : ''}</span>
