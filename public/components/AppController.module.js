@@ -1239,12 +1239,12 @@ updatePanel2Components() {
               </button>
                   `)
       .join('');
-    const contentMaxWidth = isMobile ? 'min(100%, 720px)' : '1600px';
+     const contentMaxWidth = isMobile ? '720px' : '1600px';
     const contentPadding = isMobile
-      ? 'calc(env(safe-area-inset-top, 0px) + 12px) calc(env(safe-area-inset-right, 0px) + 16px) calc(env(safe-area-inset-bottom, 0px) + 80px) calc(env(safe-area-inset-left, 0px) + 16px)'
+      ? 'calc(env(safe-area-inset-top, 0px) + 10px) calc(env(safe-area-inset-right, 0px) + 14px) calc(env(safe-area-inset-bottom, 0px) + 72px) calc(env(safe-area-inset-left, 0px) + 14px)'
       : '20px 20px 60px';
 const statusBar = `
-      <div style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:${isMobile ? '11px' : '12px'};color:#475569;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;justify-content:center;gap:${isMobile ? '6px' : '8px'};font-size:${isMobile ? '10px' : '12px'};color:#475569;flex-wrap:wrap;">
           <span id="hrddApiIndicator" style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${this.state.apiHealthy ? '#22c55e' : '#ef4444'};"></span>
           <span id="hrddApiStatus">API ${this.state.apiHealthy ? 'Connected' : 'Disconnected'}</span>
         </div>
@@ -1282,11 +1282,11 @@ const statusBar = `
 
     this.containerElement.innerHTML = `
       <div id="hrddAppContainer" style="position:relative;width:100%;height:100vh;overflow:hidden;background-color:#f8fafc;">
-        <header id="hrddHeader" style="position:absolute;top:0;left:0;right:0;z-index:1000;background:rgba(248,250,252,0.98);padding:${isMobile ? '12px 12px 8px' : '20px 20px 12px'};box-sizing:border-box;border-bottom:1px solid rgba(226,232,240,0.5);backdrop-filter:blur(10px);">
-           <div style="width:100%;max-width:1600px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:${isMobile ? '8px' : '12px'};text-align:center;padding:${isMobile ? '8px 12px' : '12px 20px'};background:rgba(255,255,255,0.9);border:1px solid rgba(226,232,240,0.8);border-radius:${isMobile ? '8px' : '12px'};box-shadow:0 6px 18px rgba(15,23,42,0.08);box-sizing:border-box;">
+       <header id="hrddHeader" style="position:absolute;top:0;left:0;right:0;z-index:1000;background:rgba(248,250,252,0.98);padding:${isMobile ? '6px 10px 4px' : '20px 20px 12px'};box-sizing:border-box;border-bottom:1px solid rgba(226,232,240,0.5);backdrop-filter:blur(10px);">
+          <div style="width:100%;max-width:${isMobile ? '720px' : '1600px'};margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:${isMobile ? '6px' : '12px'};text-align:center;padding:${isMobile ? '8px 12px' : '12px 20px'};background:rgba(255,255,255,0.9);border:1px solid rgba(226,232,240,0.8);border-radius:${isMobile ? '10px' : '12px'};box-shadow:0 6px 18px rgba(15,23,42,0.08);box-sizing:border-box;">
             ${isMobile ? `
-              <div style="display:flex;flex-direction:column;gap:6px;align-items:center;width:100%;">
-                <h1 style="font-size:18px;font-weight:700;color:#1f2937;margin:0;line-height:1.2;">Supply Chain Labour Tools</h1>
+              <div style="display:flex;flex-direction:column;gap:4px;align-items:center;width:100%;">
+                <h1 style="font-size:16px;font-weight:700;color:#1f2937;margin:0;line-height:1.2;">Supply Chain Labour Tools</h1>
               </div>
             ` : `
               <div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
@@ -1294,15 +1294,15 @@ const statusBar = `
                 <p style="font-size:15px;color:#4b5563;margin:0;">Start with panel 1 and work across to see the results on panel 5. Then use the optimizer on panel 6.</p>
               </div>
             `}
-            <div style="display:flex;justify-content:center;gap:${isMobile ? '4px' : '6px'};flex-wrap:wrap;width:100%;">
+            <div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;width:100%;">
               ${navButtons}
             </div>
             ${statusBar}
           </div>
         </header>
         <main id="hrddMainContent"
-            style="position:absolute;top:${isMobile ? '160px' : '220px'};left:0;right:0;bottom:0;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;">
-          <div style="width:100%;max-width:${contentMaxWidth};margin:0 auto;padding:${contentPadding};box-sizing:border-box;">
+            style="position:absolute;top:${isMobile ? '160px' : '220px'};left:0;right:0;bottom:0;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;display:flex;justify-content:center;">
+          <div style="width:100%;max-width:${contentMaxWidth};margin:0 auto;padding:${contentPadding};box-sizing:border-box;flex:1 1 auto;">
             <div id="panelContent">
               ${this.renderCurrentPanel()}
             </div>
