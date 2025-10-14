@@ -1237,11 +1237,14 @@ updatePanel2Components() {
                              max-width:${isMobile ? '56px' : 'none'};">
                 ${isMobile ? panel : `${panel}. ${panelTitles[panel]}`}
               </button>
-            `)
+                  `)
       .join('');
+    const contentMaxWidth = isMobile ? 'min(100%, 720px)' : '1600px';
+    const contentPadding = isMobile
+      ? 'calc(env(safe-area-inset-top, 0px) + 12px) calc(env(safe-area-inset-right, 0px) + 16px) calc(env(safe-area-inset-bottom, 0px) + 80px) calc(env(safe-area-inset-left, 0px) + 16px)'
+      : '20px 20px 60px';
 const statusBar = `
       <div style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:${isMobile ? '11px' : '12px'};color:#475569;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:6px;">
           <span id="hrddApiIndicator" style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${this.state.apiHealthy ? '#22c55e' : '#ef4444'};"></span>
           <span id="hrddApiStatus">API ${this.state.apiHealthy ? 'Connected' : 'Disconnected'}</span>
         </div>
@@ -1299,7 +1302,7 @@ const statusBar = `
         </header>
         <main id="hrddMainContent"
             style="position:absolute;top:${isMobile ? '160px' : '220px'};left:0;right:0;bottom:0;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;">
-          <div style="width:100%;max-width:${isMobile ? '100%' : '1600px'};margin:0 auto;padding:${isMobile ? '12px 12px 80px' : '20px 20px 60px'};box-sizing:border-box;">
+          <div style="width:100%;max-width:${contentMaxWidth};margin:0 auto;padding:${contentPadding};box-sizing:border-box;">
             <div id="panelContent">
               ${this.renderCurrentPanel()}
             </div>

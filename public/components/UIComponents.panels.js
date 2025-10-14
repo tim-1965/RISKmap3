@@ -89,6 +89,118 @@ function estimateSliderThumbSize(rangeInput, sliderRect) {
 
 const isMobileView = () => (typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
 
+let sliderStylesInjected = false;
+function ensureSliderResponsiveStyles() {
+  if (sliderStylesInjected || typeof document === 'undefined') {
+    return;
+  }
+
+  const existing = document.getElementById('hrdd-slider-responsive-styles');
+  if (existing) {
+    sliderStylesInjected = true;
+    return;
+  }
+
+  const style = document.createElement('style');
+  style.id = 'hrdd-slider-responsive-styles';
+  style.textContent = `
+    .hrdd-slider-control {
+      width: 100%;
+    }
+
+    .hrdd-slider-track {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    .hrdd-slider-input {
+      width: 100%;
+    }
+
+    .hrdd-slider-label-row--mobile {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .hrdd-slider-control.hrdd-slider-control--stack-mobile {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        flex-wrap: nowrap !important;
+        gap: 10px !important;
+      }
+
+      .hrdd-slider-control.hrdd-slider-control--stack-mobile .hrdd-slider-track {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+      }
+
+      .hrdd-slider-control--with-input .hrdd-slider-value-group {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .hrdd-slider-control--side-labels {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        flex-wrap: nowrap !important;
+        gap: 8px !important;
+      }
+
+      .hrdd-slider-control--side-labels .hrdd-slider-track {
+        width: 100%;
+      }
+
+      .hrdd-slider-label--desktop {
+        display: none !important;
+      }
+
+      .hrdd-slider-label-row--mobile {
+        display: flex !important;
+        justify-content: space-between;
+        font-size: 11px;
+        color: #6b7280;
+      }
+    }
+
+    @media (min-width: 769px) {
+      .hrdd-slider-control--side-labels {
+        display: grid !important;
+        grid-template-columns: minmax(90px, auto) 1fr minmax(90px, auto);
+        align-items: center;
+        gap: 12px;
+      }
+
+      .hrdd-slider-control--side-labels .hrdd-slider-track {
+        grid-column: 2;
+      }
+
+      .hrdd-slider-control--side-labels .hrdd-slider-label--desktop {
+        display: block !important;
+      }
+
+      .hrdd-slider-control--side-labels .hrdd-slider-label--desktop.hrdd-slider-label--min {
+        grid-column: 1;
+        justify-self: start;
+        text-align: left;
+      }
+
+      .hrdd-slider-control--side-labels .hrdd-slider-label--desktop.hrdd-slider-label--max {
+        grid-column: 3;
+        justify-self: end;
+        text-align: right;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+  sliderStylesInjected = true;
+}
+
 function attachDefaultSliderMarker(rangeInput, defaultValue) {
   if (typeof document === 'undefined' || !rangeInput) return;
 
@@ -437,6 +549,8 @@ export function createHRDDStrategyPanel(containerId, { strategy, onStrategyChang
   const container = document.getElementById(containerId);
   if (!container) return;
 
+  ensureSliderResponsiveStyles();
+
   const strategyLabels = riskEngine.hrddStrategyLabels;
   const strategyDescriptions = [
     '% of suppliers with always-on worker voice and daily feedback.',
@@ -543,12 +657,14 @@ export function createHRDDStrategyPanel(containerId, { strategy, onStrategyChang
       <div style="font-size: 12px; color: #6b7280; font-style: italic;">
         ${strategyDescriptions[index]}
       </div>
-      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-        <div style="flex: 1 1 220px; min-width: min(220px, 100%); max-width: 100%; position: relative; display: flex; align-items: center;">
-          <input type="range" min="0" max="100" value="${localStrategy[index]}" id="strategy_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db;">
+      <div class="hrdd-slider-control hrdd-slider-control--stack-mobile hrdd-slider-control--with-input" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <div class="hrdd-slider-track" style="flex: 1 1 220px; min-width: min(220px, 100%); max-width: 100%; position: relative; display: flex; align-items: center;">
+          <input class="hrdd-slider-input" type="range" min="0" max="100" value="${localStrategy[index]}" id="strategy_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db;">
         </div>
-        <input type="number" min="0" max="100" value="${localStrategy[index]}" id="strategyNum_${index}" style="width: 64px; flex: 0 0 64px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px; text-align: center;">
-        <span style="font-size: 12px; color: #6b7280; font-weight: 500;">%</span>
+        <div class="hrdd-slider-value-group" style="display: flex; align-items: center; gap: 8px;">
+          <input type="number" min="0" max="100" value="${localStrategy[index]}" id="strategyNum_${index}" style="width: 64px; flex: 0 0 64px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px; text-align: center;">
+          <span style="font-size: 12px; color: #6b7280; font-weight: 500;">%</span>
+        </div>
       </div>
     `;
     strategyContainer.appendChild(strategyControl);
@@ -639,6 +755,8 @@ export function createFocusPanel(containerId, { focus, onFocusChange, focusEffec
   const container = document.getElementById(containerId);
   if (!container) return;
 
+  ensureSliderResponsiveStyles();
+
   const defaultFocusValue = typeof riskEngine.defaultFocus === 'number' ? riskEngine.defaultFocus : 0.6;
   let localFocus = typeof focus === 'number' ? focus : defaultFocusValue;
 
@@ -682,11 +800,13 @@ export function createFocusPanel(containerId, { focus, onFocusChange, focusEffec
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
-        <div style="flex: 1 1 240px; min-width: min(240px, 100%); max-width: 100%; position: relative; display: flex; align-items: center;">
-          <input type="range" min="0" max="1" step="0.05" value="${localFocus.toFixed(2)}" id="focusSlider" style="width: 100%; height: 8px; border-radius: 4px; background-color: #bfdbfe;">
+      <div class="hrdd-slider-control hrdd-slider-control--stack-mobile hrdd-slider-control--with-input" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div class="hrdd-slider-track" style="flex: 1 1 240px; min-width: min(240px, 100%); max-width: 100%; position: relative; display: flex; align-items: center;">
+          <input class="hrdd-slider-input" type="range" min="0" max="1" step="0.05" value="${localFocus.toFixed(2)}" id="focusSlider" style="width: 100%; height: 8px; border-radius: 4px; background-color: #bfdbfe;">
         </div>
-        <input type="number" min="0" max="1" step="0.05" value="${localFocus.toFixed(2)}" id="focusNumber" style="width: 72px; flex: 0 0 72px; padding: 6px 8px; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 13px; text-align: center;">
+        <div class="hrdd-slider-value-group" style="display: flex; align-items: center; gap: 8px;">
+          <input type="number" min="0" max="1" step="0.05" value="${localFocus.toFixed(2)}" id="focusNumber" style="width: 72px; flex: 0 0 72px; padding: 6px 8px; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 13px; text-align: center;">
+        </div>
       </div>
 
       <ul style="margin: 0; font-size: 13px; color: #1e3a8a; padding-left: 20px; line-height: 1.6;">
@@ -771,6 +891,8 @@ export function createTransparencyPanel(containerId, { transparency, onTranspare
   const container = document.getElementById(containerId);
   if (!container) return;
 
+  ensureSliderResponsiveStyles();
+
   const strategyLabels = riskEngine.hrddStrategyLabels;
   const effectivenessDescriptions = [
     'Real-time anonymous feedback direct from workers can reveal almost all issues.',
@@ -849,12 +971,16 @@ export function createTransparencyPanel(containerId, { transparency, onTranspare
       <div style="font-size: 12px; color: #6b7280; font-style: italic;">
         ${effectivenessAssumptions[index]}
       </div>
-      <div style="display: flex; align-items: center; gap: 12px; padding-top: 4px;">
-        <span style="font-size: 11px; color: #6b7280; min-width: 90px; text-align: left;">Ineffective</span>
-        <div style="flex: 1; position: relative; display: flex; align-items: center;">
-          <input type="range" min="0" max="100" value="${localTransparency[index]}" id="transparency_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db; accent-color: ${categoryColor};">
+       <div class="hrdd-slider-control hrdd-slider-control--side-labels" style="display: flex; align-items: center; gap: 12px; padding-top: 4px;">
+        <div class="hrdd-slider-track" style="flex: 1; position: relative; display: flex; align-items: center;">
+          <input class="hrdd-slider-input" type="range" min="0" max="100" value="${localTransparency[index]}" id="transparency_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db; accent-color: ${categoryColor};">
         </div>
-        <span style="font-size: 11px; color: #6b7280; min-width: 90px; text-align: right;">Fully effective</span>
+        <span class="hrdd-slider-label hrdd-slider-label--min hrdd-slider-label--desktop" style="font-size: 11px; color: #6b7280; min-width: 90px; text-align: left;">Ineffective</span>
+        <span class="hrdd-slider-label hrdd-slider-label--max hrdd-slider-label--desktop" style="font-size: 11px; color: #6b7280; min-width: 90px; text-align: right;">Fully effective</span>
+        <div class="hrdd-slider-label-row hrdd-slider-label-row--mobile">
+          <span class="hrdd-slider-label hrdd-slider-label--min">Ineffective</span>
+          <span class="hrdd-slider-label hrdd-slider-label--max">Fully effective</span>
+        </div>
       </div>
     `;
     transparencyContainer.appendChild(transparencyControl);
@@ -893,6 +1019,8 @@ export function createTransparencyPanel(containerId, { transparency, onTranspare
 export function createResponsivenessPanel(containerId, { responsiveness, onResponsivenessChange }) {
   const container = document.getElementById(containerId);
   if (!container) return;
+
+  ensureSliderResponsiveStyles();
 
   const toolLabels = riskEngine.hrddStrategyLabels;
   const toolDescriptions = [
@@ -988,9 +1116,8 @@ export function createResponsivenessPanel(containerId, { responsiveness, onRespo
         <div style="display: flex; justify-content: space-between; font-size: 11px; color: #6b7280;">
           <span style="text-align: left;">No support</span>
           <span style="text-align: right;">Full support</span>
-        </div>
-        <div style="position: relative; display: flex; align-items: center;">
-          <input type="range" min="0" max="100" value="${localResponsiveness[index]}" id="responsiveness_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db; accent-color: ${categoryColor};">
+         <div style="position: relative; display: flex; align-items: center;">
+          <input class="hrdd-slider-input" type="range" min="0" max="100" value="${localResponsiveness[index]}" id="responsiveness_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db; accent-color: ${categoryColor};">
         </div>
       </div>
     `;
@@ -1062,6 +1189,8 @@ export function createResponsivenessPanel(containerId, { responsiveness, onRespo
 export function createResponsivenessEffectivenessPanel(containerId, { effectiveness, onEffectivenessChange }) {
   const container = document.getElementById(containerId);
   if (!container) return;
+
+  ensureSliderResponsiveStyles();
 
   const toolLabels = riskEngine.hrddStrategyLabels;
   const conductDescriptions = [
@@ -1138,7 +1267,7 @@ export function createResponsivenessEffectivenessPanel(containerId, { effectiven
           <span style="text-align: right;">Promotes good conduct</span>
         </div>
         <div style="position: relative; display: flex; align-items: center;">
-          <input type="range" min="0" max="100" value="${localEffectiveness[index]}" id="responsivenessEffectiveness_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db; accent-color: ${categoryColor};">
+          <input class="hrdd-slider-input" type="range" min="0" max="100" value="${localEffectiveness[index]}" id="responsivenessEffectiveness_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db; accent-color: ${categoryColor};">
         </div>
       </div>
     `;
@@ -1829,6 +1958,8 @@ export function createWeightingsPanel(containerId, { weights, onWeightsChange })
   const container = document.getElementById(containerId);
   if (!container) return;
 
+  ensureSliderResponsiveStyles();
+
   const weightFactors = [
     {
       label: 'International Trade Union Confederation - Global Rights Index',
@@ -1950,11 +2081,13 @@ export function createWeightingsPanel(containerId, { weights, onWeightsChange })
         </a>
       </div>
       <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">${factor.description}</div>
-      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-        <div style="flex: 1 1 220px; min-width: min(220px, 100%); max-width: 100%; position: relative; display: flex; align-items: center;">
-          <input type="range" min="0" max="100" value="${weightValue}" id="weight_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db;">
+       <div class="hrdd-slider-control hrdd-slider-control--stack-mobile hrdd-slider-control--with-input" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <div class="hrdd-slider-track" style="flex: 1 1 220px; min-width: min(220px, 100%); max-width: 100%; position: relative; display: flex; align-items: center;">
+          <input class="hrdd-slider-input" type="range" min="0" max="100" value="${weightValue}" id="weight_${index}" style="width: 100%; height: 8px; border-radius: 4px; background-color: #d1d5db;">
         </div>
-        <input type="number" min="0" max="100" value="${weightValue}" id="weightNum_${index}" style="width: 64px; flex: 0 0 64px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px; text-align: center;">
+        <div class="hrdd-slider-value-group" style="display: flex; align-items: center; gap: 8px;">
+          <input type="number" min="0" max="100" value="${weightValue}" id="weightNum_${index}" style="width: 64px; flex: 0 0 64px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px; text-align: center;">
+        </div>
       </div>
     `;
     weightsContainer.appendChild(weightControl);
